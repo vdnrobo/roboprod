@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+
+{% block title %}Причины отклонения{% endblock %}
+
+{% block content %}
+<section class="section-head">
+  <div>
+    <h1>Причины отклонения</h1>
+    <p class="muted">Стандартные причины для быстрого отклонения заказов.</p>
+  </div>
+  <a class="button primary" href="{% url 'rejection_reason_create' %}">Добавить причину</a>
+</section>
+
+<div class="table-wrap">
+  <table>
+    <thead>
+      <tr>
+        <th>Причина</th>
+        <th>Статус</th>
+        <th>Создана</th>
+        <th>Действия</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for reason in reasons %}
+        <tr>
+          <td>{{ reason.text }}</td>
+          <td>
+            {% if reason.is_active %}
+              <span class="status done">Активна</span>
+            {% else %}
+              <span class="status cancelled">Отключена</span>
+            {% endif %}
+          </td>
+          <td>{{ reason.created_at|date:"d.m.Y H:i" }}</td>
+          <td>
+            <div class="row-actions">
+              <a class="button" href="{% url 'rejection_reason_update' reason.pk %}">Изменить</a>
+              <a class="button danger-link" href="{% url 'rejection_reason_delete' reason.pk %}">Удалить</a>
+            </div>
+          </td>
+        </tr>
+      {% empty %}
+        <tr><td colspan="4">Стандартных причин пока нет.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

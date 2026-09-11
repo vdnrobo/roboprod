@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+
+{% block title %}Удалить график{% endblock %}
+
+{% block content %}
+<section class="panel narrow">
+  <h1>Удалить график</h1>
+  <p>График <strong>{{ schedule }}</strong> и его строки будут удалены.</p>
+  <form method="post" class="actions">
+    {% csrf_token %}
+    <button class="danger-button" type="submit">Удалить</button>
+    <a class="button" href="{% url 'duty_slot_list' %}">Отмена</a>
+  </form>
+</section>
+{% endblock %}

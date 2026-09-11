@@ -1,0 +1,263 @@
+{% load static %}
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}Производство лаборатории{% endblock %}</title>
+  <script src="{% static 'js/theme-init.js' %}?v=20260806-1"></script>
+  <link rel="icon" href="{% static 'favicon.ico' %}?v=20260427-1" sizes="any">
+  <link rel="shortcut icon" href="{% static 'favicon.ico' %}?v=20260427-1">
+  <link rel="stylesheet" href="{% static 'css/app.css' %}?v=20260908-7">
+  {% if page_transitions_enabled %}
+    <script src="{% static 'js/page-transitions.js' %}?v=20260908-1" defer></script>
+  {% endif %}
+  <script src="{% static 'js/nav.js' %}?v=20260908-3" defer></script>
+  {% block head_extra %}{% endblock %}
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="{% if can_access_production_queue_user %}{% url 'admin_order_queue' %}{% else %}{% url 'orders' %}{% endif %}">
+      <span>Производство</span>
+    </a>
+
+    <nav class="nav desktop-nav" aria-label="Основная навигация">
+      {% if user.is_authenticated %}
+        {% if user.is_staff %}
+          <a href="{% url 'orders' %}">Мои заказы</a>
+          <div class="nav-group">
+            <button type="button" class="nav-group__trigger">Производство</button>
+            <div class="nav-menu">
+              <a href="{% url 'admin_order_queue' %}">Очередь</a>
+              <a href="{% url 'admin_order_ready' %}">К выдаче</a>
+              <a href="{% url 'admin_order_archive' %}">Архив</a>
+            </div>
+          </div>
+          <div class="nav-group">
+            <button type="button" class="nav-group__trigger">Создание</button>
+            <div class="nav-menu">
+              <a href="{% url 'order_create' %}">Новый заказ</a>
+              <a href="{% url 'bulk_order_create' %}">Массовая загрузка</a>
+            </div>
+          </div>
+          <div class="nav-group">
+            <button type="button" class="nav-group__trigger">Управление</button>
+            <div class="nav-menu">
+              <a href="{% url 'material_list' %}">Материалы</a>
+              <a href="{% url 'rejection_reason_list' %}">Причины отклонения</a>
+              <a href="{% url 'info_panel' %}">Объявления и отсчеты</a>
+              <a href="{% url 'duty_slot_list' %}">График дежурства</a>
+              <a href="{% url 'prefix_rule_list' %}">Префиксы заказов</a>
+              <a href="{% url 'user_list' %}">Пользователи</a>
+            </div>
+          </div>
+          <div class="nav-group">
+            <button type="button" class="nav-group__trigger">Отчетность</button>
+            <div class="nav-menu">
+              <a href="{% url 'admin_dashboard' %}">Dashboard</a>
+              <a href="{% url 'status_log_list' %}">Журнал</a>
+              <a href="{% url 'audit_log_list' %}">Аудит</a>
+              <a href="{% url 'system_health' %}">Здоровье системы</a>
+            </div>
+          </div>
+        {% elif is_semi_printer_user %}
+          <div class="nav-group">
+            <button type="button" class="nav-group__trigger">Производство</button>
+            <div class="nav-menu">
+              <a href="{% url 'admin_order_queue' %}">Очередь</a>
+            </div>
+          </div>
+        {% else %}
+          <a href="{% url 'orders' %}">Мои заказы</a>
+          <a href="{% url 'order_create' %}">Новый заказ</a>
+        {% endif %}
+        <div class="nav-group account-menu">
+          <button type="button" class="nav-group__trigger account-trigger">
+            {% if user.first_name or user.last_name %}
+              {{ user.last_name }} {{ user.first_name }}
+            {% else %}
+              {{ user.username }}
+            {% endif %}
+          </button>
+          <div class="nav-menu nav-menu--account">
+            <button type="button" data-theme-toggle>Темная тема</button>
+            <form class="logout-form" method="post" action="{% url 'logout' %}">
+              {% csrf_token %}
+              <button type="submit">Выйти</button>
+            </form>
+          </div>
+        </div>
+      {% else %}
+        <a href="{% url 'login' %}">Войти</a>
+        <a href="{% url 'register' %}">Регистрация</a>
+      {% endif %}
+    </nav>
+
+    <details class="mobile-nav mobile-collapsible" aria-label="Навигация" data-collapsible-key="mobile-nav" open>
+      <summary class="mobile-collapsible__summary">Раздел</summary>
+      <div class="mobile-collapsible__content mobile-nav__content">
+        <label>
+          <span>Перейти в раздел</span>
+          <select class="mobile-nav-select">
+            {% if user.is_authenticated %}
+              {% if user.is_staff %}
+                <option value="{% url 'orders' %}" {% if request.resolver_match.url_name == 'orders' %}selected{% endif %}>Мои заказы</option>
+                <optgroup label="Производство">
+                  <option value="{% url 'admin_order_queue' %}" {% if request.resolver_match.url_name == 'admin_order_queue' %}selected{% endif %}>Очередь</option>
+                  <option value="{% url 'admin_order_ready' %}" {% if request.resolver_match.url_name == 'admin_order_ready' %}selected{% endif %}>К выдаче</option>
+                  <option value="{% url 'admin_order_archive' %}" {% if request.resolver_match.url_name == 'admin_order_archive' %}selected{% endif %}>Архив</option>
+                </optgroup>
+                <optgroup label="Создание">
+                  <option value="{% url 'order_create' %}" {% if request.resolver_match.url_name == 'order_create' %}selected{% endif %}>Новый заказ</option>
+                  <option value="{% url 'bulk_order_create' %}" {% if request.resolver_match.url_name == 'bulk_order_create' %}selected{% endif %}>Массовая загрузка</option>
+                </optgroup>
+                <optgroup label="Управление">
+                  <option value="{% url 'material_list' %}" {% if request.resolver_match.url_name == 'material_list' or request.resolver_match.url_name == 'material_create' or request.resolver_match.url_name == 'material_update' or request.resolver_match.url_name == 'material_delete' %}selected{% endif %}>Материалы</option>
+                  <option value="{% url 'rejection_reason_list' %}" {% if request.resolver_match.url_name == 'rejection_reason_list' or request.resolver_match.url_name == 'rejection_reason_create' or request.resolver_match.url_name == 'rejection_reason_update' or request.resolver_match.url_name == 'rejection_reason_delete' %}selected{% endif %}>Причины отклонения</option>
+                  <option value="{% url 'info_panel' %}" {% if request.resolver_match.url_name == 'info_panel' or request.resolver_match.url_name == 'announcement_list' or request.resolver_match.url_name == 'announcement_create' or request.resolver_match.url_name == 'announcement_update' or request.resolver_match.url_name == 'announcement_delete' or request.resolver_match.url_name == 'countdown_list' or request.resolver_match.url_name == 'countdown_create' or request.resolver_match.url_name == 'countdown_update' or request.resolver_match.url_name == 'countdown_delete' %}selected{% endif %}>Объявления и отсчеты</option>
+                  <option value="{% url 'duty_slot_list' %}" {% if request.resolver_match.url_name == 'duty_slot_list' or request.resolver_match.url_name == 'duty_slot_day_update' or request.resolver_match.url_name == 'duty_schedule_create' or request.resolver_match.url_name == 'duty_schedule_update' or request.resolver_match.url_name == 'duty_schedule_edit' or request.resolver_match.url_name == 'duty_schedule_delete' or request.resolver_match.url_name == 'duty_schedule_rule_create' or request.resolver_match.url_name == 'duty_schedule_rule_update' or request.resolver_match.url_name == 'duty_schedule_rule_delete' or request.resolver_match.url_name == 'duty_person_create' or request.resolver_match.url_name == 'duty_person_update' or request.resolver_match.url_name == 'duty_person_delete' or request.resolver_match.url_name == 'duty_slot_create' or request.resolver_match.url_name == 'duty_slot_update' or request.resolver_match.url_name == 'duty_slot_delete' or request.resolver_match.url_name == 'duty_skip_create' or request.resolver_match.url_name == 'duty_skip_update' or request.resolver_match.url_name == 'duty_skip_delete' %}selected{% endif %}>График дежурства</option>
+                  <option value="{% url 'prefix_rule_list' %}" {% if request.resolver_match.url_name == 'prefix_rule_list' or request.resolver_match.url_name == 'prefix_rule_create' or request.resolver_match.url_name == 'prefix_rule_update' or request.resolver_match.url_name == 'prefix_rule_delete' %}selected{% endif %}>Префиксы заказов</option>
+                  <option value="{% url 'user_list' %}" {% if request.resolver_match.url_name == 'user_list' %}selected{% endif %}>Пользователи</option>
+                </optgroup>
+                <optgroup label="Отчетность">
+                  <option value="{% url 'admin_dashboard' %}" {% if request.resolver_match.url_name == 'admin_dashboard' %}selected{% endif %}>Dashboard</option>
+                  <option value="{% url 'status_log_list' %}" {% if request.resolver_match.url_name == 'status_log_list' %}selected{% endif %}>Журнал</option>
+                  <option value="{% url 'audit_log_list' %}" {% if request.resolver_match.url_name == 'audit_log_list' %}selected{% endif %}>Аудит</option>
+                  <option value="{% url 'system_health' %}" {% if request.resolver_match.url_name == 'system_health' %}selected{% endif %}>Здоровье системы</option>
+                </optgroup>
+              {% elif is_semi_printer_user %}
+                <optgroup label="Производство">
+                  <option value="{% url 'admin_order_queue' %}" {% if request.resolver_match.url_name == 'admin_order_queue' %}selected{% endif %}>Очередь</option>
+                </optgroup>
+              {% else %}
+                <option value="{% url 'orders' %}" {% if request.resolver_match.url_name == 'orders' %}selected{% endif %}>Мои заказы</option>
+                <option value="{% url 'order_create' %}" {% if request.resolver_match.url_name == 'order_create' %}selected{% endif %}>Новый заказ</option>
+              {% endif %}
+            {% else %}
+              <option value="{% url 'login' %}" {% if request.resolver_match.url_name == 'login' %}selected{% endif %}>Войти</option>
+              <option value="{% url 'register' %}" {% if request.resolver_match.url_name == 'register' %}selected{% endif %}>Регистрация</option>
+            {% endif %}
+          </select>
+        </label>
+        {% if user.is_authenticated %}
+          <div class="mobile-account">
+            <span>
+              {% if user.first_name or user.last_name %}
+                {{ user.last_name }} {{ user.first_name }}
+              {% else %}
+                {{ user.username }}
+              {% endif %}
+            </span>
+            <button type="button" data-theme-toggle>Темная тема</button>
+            <form class="logout-form" method="post" action="{% url 'logout' %}">
+              {% csrf_token %}
+              <button type="submit">Выйти</button>
+            </form>
+          </div>
+        {% endif %}
+      </div>
+    </details>
+  </header>
+
+  <div class="layout-shell {% if has_left_sidebar %}layout-shell--with-announcement{% endif %} {% if has_active_countdowns %}layout-shell--with-countdowns{% endif %}">
+    {% if has_left_sidebar %}
+      <aside class="left-sidebar" aria-label="Левые информационные блоки">
+        {% if active_duty_slots %}
+          <details class="duty-panel mobile-collapsible" aria-label="График дежурства" data-collapsible-key="duty-panel" open>
+            <summary class="mobile-collapsible__summary duty-panel__summary">График дежурства</summary>
+            <div class="mobile-collapsible__content">
+            <div class="duty-panel__head">
+              <div class="duty-panel__label">График дежурства</div>
+              <a class="button duty-panel__skip" href="{% url 'duty_skip_create' %}">Пропуск</a>
+            </div>
+            <table class="duty-table">
+              <thead>
+                <tr>
+                  <th>Дежурный</th>
+                  <th>Время</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for slot in active_duty_slots %}
+                  <tr>
+                    <td>
+                      {{ slot.last_name }} {{ slot.first_name }}
+                      {% if slot.replacement_for %}
+                        <span class="duty-replacement-note">замена за {{ slot.replacement_for }}</span>
+                      {% endif %}
+                    </td>
+                    <td>{{ slot.unload_time|time:"H:i" }}</td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+            </div>
+          </details>
+        {% endif %}
+        {% if pinned_announcement %}
+          <details class="pinned-announcement mobile-collapsible" aria-label="Закрепленное объявление" data-collapsible-key="pinned-announcement" open>
+            <summary class="mobile-collapsible__summary">Объявление</summary>
+            <div class="mobile-collapsible__content">
+            <div class="pinned-announcement__label">Объявление</div>
+            <h2>{{ pinned_announcement.title }}</h2>
+            <p>{{ pinned_announcement.body|linebreaksbr }}</p>
+            </div>
+          </details>
+        {% endif %}
+        {% if has_active_countdowns %}
+          <details class="countdown-panel countdown-panel--stacked mobile-collapsible" aria-label="Отсчеты" data-collapsible-key="countdowns" open>
+            <summary class="mobile-collapsible__summary">Отсчеты</summary>
+            <div class="mobile-collapsible__content">
+            <div class="countdown-panel__label">Отсчеты</div>
+            <div class="countdown-list">
+              {% for countdown in active_countdowns %}
+                <div class="countdown-item">
+                  <h2>{{ countdown.title }}</h2>
+                  <div class="countdown-days">{{ countdown.days_left }}</div>
+                  <p>{{ countdown.days_left_word }}</p>
+                  <span class="muted">до {{ countdown.target_date|date:"d.m.Y" }}</span>
+                </div>
+              {% endfor %}
+            </div>
+            </div>
+          </details>
+        {% endif %}
+      </aside>
+    {% endif %}
+    <main class="page">
+      {% if messages %}
+        <div class="messages">
+          {% for message in messages %}
+            <div class="message {{ message.tags }}">{{ message }}</div>
+          {% endfor %}
+        </div>
+      {% endif %}
+      {% block content %}{% endblock %}
+    </main>
+    {% if has_active_countdowns %}
+      <details class="countdown-panel countdown-panel--side mobile-collapsible" aria-label="Отсчеты" data-collapsible-key="countdowns" open>
+        <summary class="mobile-collapsible__summary">Отсчеты</summary>
+        <div class="mobile-collapsible__content">
+        <div class="countdown-panel__label">Отсчеты</div>
+        <div class="countdown-list">
+          {% for countdown in active_countdowns %}
+            <div class="countdown-item">
+              <h2>{{ countdown.title }}</h2>
+              <div class="countdown-days">{{ countdown.days_left }}</div>
+              <p>{{ countdown.days_left_word }}</p>
+              <span class="muted">до {{ countdown.target_date|date:"d.m.Y" }}</span>
+            </div>
+          {% endfor %}
+        </div>
+        </div>
+      </details>
+    {% endif %}
+  </div>
+
+  <footer class="footer">
+    <span>Производство лаборатории Robo548. 2026.</span>
+    <span>3D-печать и лазерная резка · {{ project_version }}</span>
+  </footer>
+  {% block scripts %}{% endblock %}
+</body>
+</html>

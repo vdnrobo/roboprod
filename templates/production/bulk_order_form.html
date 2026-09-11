@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+
+{% block title %}Массовая загрузка{% endblock %}
+
+{% block content %}
+<section class="panel">
+  <h1>Массовая загрузка</h1>
+  <form method="post" enctype="multipart/form-data" class="form">
+    {% csrf_token %}
+    {{ form.non_field_errors }}
+    {% for field in form %}
+      <label>
+        <span>{{ field.label }}</span>
+        {{ field }}
+        {{ field.errors }}
+      </label>
+    {% endfor %}
+    <div class="actions">
+      <button class="primary" type="submit">Создать заказы</button>
+      <a class="button" href="{% url 'admin_order_queue' %}">Отмена</a>
+    </div>
+  </form>
+</section>
+{% endblock %}

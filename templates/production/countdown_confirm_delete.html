@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+
+{% block title %}Удалить отсчет{% endblock %}
+
+{% block content %}
+<section class="panel narrow">
+  <h1>Удалить отсчет</h1>
+  <p>Отсчет <strong>{{ countdown.title }}</strong> будет удален.</p>
+  <form method="post" class="actions">
+    {% csrf_token %}
+    <button class="danger-button" type="submit">Удалить</button>
+    <a class="button" href="{% url 'info_panel' %}">Отмена</a>
+  </form>
+</section>
+{% endblock %}

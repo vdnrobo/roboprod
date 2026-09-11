@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+
+{% block title %}Здоровье системы{% endblock %}
+
+{% block content %}
+<section class="section-head">
+  <div>
+    <h1>Здоровье системы</h1>
+    <p class="muted">Диск, статические и медиафайлы, база данных и состояние резервных копий.</p>
+  </div>
+  <a class="button" href="{% url 'admin_dashboard' %}">Dashboard</a>
+</section>
+
+<section class="dashboard-grid health-grid">
+  <div class="panel stat-card">
+    <span class="muted">Свободно на диске</span>
+    <strong>{{ disk.free }}</strong>
+    <span class="muted">Всего: {{ disk.total }}; занято: {{ disk.used }}</span>
+  </div>
+  <div class="panel stat-card">
+    <span class="muted">Media</span>
+    <strong>{{ media_stats.size_display }}</strong>
+    <span class="muted">{{ media_stats.file_count }} файлов</span>
+  </div>
+  <div class="panel stat-card">
+    <span class="muted">Staticfiles</span>
+    <strong>{{ static_stats.size_display }}</strong>
+    <span class="muted">{{ static_stats.file_count }} файлов</span>
+  </div>
+  <div class="panel stat-card">
+    <span class="muted">Последний backup</span>
+    {% if backup.latest %}
+      <strong>{{ backup.latest_date|date:"d.m.Y H:i" }}</strong>
+      <span class="muted">{{ backup.latest }}</span>
+    {% else %}
+      <strong>-</strong>
+      <span class="muted">{{ backup.warning }}</span>
+    {% endif %}
+  </div>
+</section>
+
+<section class="details health-details">
+  <div>
+    <h2>Файлы</h2>
+    <dl>
+      <dt>MEDIA_ROOT</dt><dd>{{ media_stats.path }}</dd>
+      <dt>Media существует</dt><dd>{% if media_stats.exists %}Да{% else %}Нет{% endif %}</dd>
+      <dt>Media ошибка</dt><dd>{{ media_stats.error|default:"-" }}</dd>
+      <dt>STATIC_ROOT</dt><dd>{{ static_stats.path }}</dd>
+      <dt>Staticfiles существует</dt><dd>{% if static_stats.exists %}Да{% else %}Нет{% endif %}</dd>
+      <dt>Staticfiles ошибка</dt><dd>{{ static_stats.error|default:"-" }}</dd>
+    </dl>
+  </div>
+  <div>
+    <h2>База и backup</h2>
+    <dl>
+      <dt>Engine</dt><dd>{{ database.engine }}</dd>
+      <dt>Database</dt><dd>{{ database.name }}</dd>
+      <dt>Размер SQLite</dt><dd>{{ database.sqlite_size|default:"-" }}</dd>
+      <dt>BACKUP_ROOT</dt><dd>{{ backup.path }}</dd>
+      <dt>Backup существует</dt><dd>{% if backup.exists %}Да{% else %}Нет{% endif %}</dd>
+      <dt>Предупреждение</dt><dd>{{ backup.warning|default:"-" }}</dd>
+    </dl>
+  </div>
+</section>
+{% endblock %}

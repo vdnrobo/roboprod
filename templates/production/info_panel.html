@@ -1,0 +1,132 @@
+{% extends "base.html" %}
+
+{% block title %}Объявления и отсчеты{% endblock %}
+
+{% block content %}
+<section class="section-head">
+  <div>
+    <h1>Объявления и отсчеты</h1>
+    <p class="muted">Публичные боковые блоки сайта.</p>
+  </div>
+  <div class="actions">
+    <a class="button primary" href="{% url 'announcement_create' %}">Добавить объявление</a>
+    <a class="button primary" href="{% url 'countdown_create' %}">Добавить отсчет</a>
+  </div>
+</section>
+
+<section class="panel info-section">
+  <div class="section-head">
+    <div>
+      <h2>Настройки производства</h2>
+      <p class="muted">Общие настройки пользовательских действий.</p>
+    </div>
+  </div>
+  <form method="post" class="form">
+    {% csrf_token %}
+    <input type="hidden" name="save_production_settings" value="1">
+    {{ settings_form.non_field_errors }}
+    {% for field in settings_form %}
+      <label class="check">
+        {{ field }}
+        <span>{{ field.label }}</span>
+        {{ field.errors }}
+      </label>
+    {% endfor %}
+    <div class="actions">
+      <button class="primary" type="submit">Сохранить настройки</button>
+    </div>
+  </form>
+</section>
+
+<section class="panel info-section">
+  <div class="section-head">
+    <div>
+      <h2>Объявления</h2>
+      <p class="muted">Активное объявление показывается слева от основного окна.</p>
+    </div>
+  </div>
+  <div class="table-wrap embedded">
+    <table>
+      <thead>
+        <tr>
+          <th>Заголовок</th>
+          <th>Текст</th>
+          <th>Статус</th>
+          <th>Обновлено</th>
+          <th>Действия</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for announcement in announcements %}
+          <tr>
+            <td>{{ announcement.title }}</td>
+            <td>{{ announcement.body|linebreaksbr }}</td>
+            <td>
+              {% if announcement.is_active %}
+                <span class="status done">Закреплено</span>
+              {% else %}
+                <span class="status cancelled">Отключено</span>
+              {% endif %}
+            </td>
+            <td>{{ announcement.updated_at|date:"d.m.Y H:i" }}</td>
+            <td>
+              <div class="row-actions">
+                <a class="button" href="{% url 'announcement_update' announcement.pk %}">Изменить</a>
+                <a class="button danger-link" href="{% url 'announcement_delete' announcement.pk %}">Удалить</a>
+              </div>
+            </td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="5">Объявлений пока нет.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section class="panel info-section">
+  <div class="section-head">
+    <div>
+      <h2>Отсчеты</h2>
+      <p class="muted">Активные отсчеты показываются справа от основного окна.</p>
+    </div>
+  </div>
+  <div class="table-wrap embedded">
+    <table>
+      <thead>
+        <tr>
+          <th>Название</th>
+          <th>Дата</th>
+          <th>Осталось дней</th>
+          <th>Статус</th>
+          <th>Действия</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for countdown in countdowns %}
+          <tr>
+            <td>{{ countdown.title }}</td>
+            <td>{{ countdown.target_date|date:"d.m.Y" }}</td>
+            <td>{{ countdown.days_left }}</td>
+            <td>
+              {% if countdown.is_active %}
+                <span class="status done">Активен</span>
+              {% else %}
+                <span class="status cancelled">Отключен</span>
+              {% endif %}
+            </td>
+            <td>
+              <div class="row-actions">
+                <a class="button" href="{% url 'countdown_update' countdown.pk %}">Изменить</a>
+                <a class="button danger-link" href="{% url 'countdown_delete' countdown.pk %}">Удалить</a>
+              </div>
+            </td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="5">Отсчетов пока нет.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+{% endblock %}

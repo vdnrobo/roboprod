@@ -1,0 +1,116 @@
+{% extends "base.html" %}
+
+{% block title %}Пользователи{% endblock %}
+
+{% block content %}
+<section class="section-head">
+  <div>
+    <h1>Пользователи</h1>
+    <p class="muted">Зарегистрированные аккаунты и права администратора.</p>
+  </div>
+</section>
+
+<form id="bulk-user-delete-form" method="post" action="{% url 'user_bulk_delete' %}" class="bulk-list-action">
+  {% csrf_token %}
+  <label class="check">
+    <input type="checkbox" data-select-all="users">
+    <span>Выбрать всех на странице</span>
+  </label>
+  <button class="danger-button" type="submit">Удалить выбранных</button>
+</form>
+
+<div class="table-wrap">
+  <table>
+    <thead>
+      <tr>
+        <th>Выбор</th>
+        <th>Пользователь</th>
+        <th>Фамилия</th>
+        <th>Имя</th>
+        <th>Email</th>
+        <th>Роль</th>
+        <th>Дата регистрации</th>
+        <th>Действие</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for account in users %}
+        <tr>
+          <td>
+            {% if account.pk != first_user_id and account != user %}
+              <input
+                form="bulk-user-delete-form"
+                class="row-select-checkbox"
+                type="checkbox"
+                name="user_ids"
+                value="{{ account.pk }}"
+                aria-label="Выбрать пользователя {{ account.username }}"
+                data-select-item="users"
+              >
+            {% else %}
+              <span class="muted">-</span>
+            {% endif %}
+          </td>
+          <td>{{ account.username }}</td>
+          <td>{{ account.last_name|default:"-" }}</td>
+          <td>{{ account.first_name|default:"-" }}</td>
+          <td>{{ account.email|default:"-" }}</td>
+          <td>
+            {% if account.is_staff %}
+              <span class="status done">Администратор</span>
+            {% elif account.pk in semi_printer_ids %}
+              <span class="status in_progress">Полупечатник</span>
+            {% else %}
+              <span class="status pending">Пользователь</span>
+            {% endif %}
+          </td>
+          <td>{{ account.date_joined|date:"d.m.Y H:i" }}</td>
+          <td>
+            <div class="row-actions">
+            <a class="button secondary" href="{% url 'user_stats' account.pk %}">Статистика</a>
+            {% if account.pk == first_user_id %}
+              <span class="muted">Первый администратор</span>
+            {% elif account == user %}
+              <span class="muted">Текущий аккаунт</span>
+            {% elif account.is_staff %}
+              <form method="post" action="{% url 'user_admin_toggle' account.pk %}">
+                {% csrf_token %}
+                <input type="hidden" name="is_admin" value="0">
+                <button type="submit">Снять админа</button>
+              </form>
+            {% elif account.pk in semi_printer_ids %}
+              <form method="post" action="{% url 'user_semi_printer_toggle' account.pk %}">
+                {% csrf_token %}
+                <input type="hidden" name="is_semi_printer" value="0">
+                <button type="submit">Снять полупечатника</button>
+              </form>
+            {% else %}
+              <form method="post" action="{% url 'user_admin_toggle' account.pk %}">
+                {% csrf_token %}
+                <input type="hidden" name="is_admin" value="1">
+                <button class="primary" type="submit">Сделать админом</button>
+              </form>
+              {% if account.pk != first_user_id %}
+                <form method="post" action="{% url 'user_semi_printer_toggle' account.pk %}">
+                  {% csrf_token %}
+                  <input type="hidden" name="is_semi_printer" value="1">
+                  <button type="submit">Сделать полупечатником</button>
+                </form>
+              {% endif %}
+            {% endif %}
+            {% if account.pk != first_user_id and account != user %}
+              <form method="post" action="{% url 'user_delete' account.pk %}">
+                {% csrf_token %}
+                <button class="danger-button" type="submit">Удалить</button>
+              </form>
+            {% endif %}
+            </div>
+          </td>
+        </tr>
+      {% empty %}
+        <tr><td colspan="8">Пользователей пока нет.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

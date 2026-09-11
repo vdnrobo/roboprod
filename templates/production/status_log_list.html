@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+
+{% block title %}Журнал статусов{% endblock %}
+
+{% block content %}
+<section class="section-head">
+  <div>
+    <h1>Журнал статусов</h1>
+    <p class="muted">Последние изменения статусов заказов администраторами.</p>
+  </div>
+</section>
+
+<div class="table-wrap">
+  <table>
+    <thead>
+      <tr>
+        <th>Дата</th>
+        <th>Заказ</th>
+        <th>Кто изменил</th>
+        <th>Было</th>
+        <th>Стало</th>
+        <th>Причина</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for log in logs %}
+        <tr>
+          <td>{{ log.created_at|date:"d.m.Y H:i" }}</td>
+          <td>
+            {% if log.order %}
+              <a href="{% url 'order_detail' log.order.pk %}">#{{ log.order.display_number }}</a>
+            {% else %}
+              #{{ log.order_number }}
+            {% endif %}
+            <br><span class="muted">{{ log.order_title }}</span>
+          </td>
+          <td>{% if log.changed_by %}{{ log.changed_by.username }}{% else %}-{% endif %}</td>
+          <td>{{ log.get_old_status_display }}</td>
+          <td>{{ log.get_new_status_display }}</td>
+          <td>{{ log.reason|default:"-" }}</td>
+        </tr>
+      {% empty %}
+        <tr><td colspan="6">Журнал пока пуст.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

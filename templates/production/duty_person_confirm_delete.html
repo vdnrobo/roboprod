@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+
+{% block title %}Удалить дежурного{% endblock %}
+
+{% block content %}
+<section class="panel narrow">
+  <h1>Удалить дежурного</h1>
+  <p>Дежурный <strong>{{ person }}</strong> будет удален из справочника.</p>
+  <form method="post" class="actions">
+    {% csrf_token %}
+    <button class="danger-button" type="submit">Удалить</button>
+    <a class="button" href="{% url 'duty_slot_list' %}">Отмена</a>
+  </form>
+</section>
+{% endblock %}

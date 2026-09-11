@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+
+{% block title %}Новый заказ{% endblock %}
+
+{% block content %}
+<section class="panel">
+  <h1>Новый заказ</h1>
+  <p class="muted">
+    Тип производства: <strong>{{ selected_type_label }}</strong>.
+    Допустимые форматы файла: <strong>{{ allowed_extensions }}</strong>.
+    Максимальный размер файла: <strong>50 МБ</strong>.
+  </p>
+  <form method="post" enctype="multipart/form-data" class="form grid-form">
+    {% csrf_token %}
+    {{ form.non_field_errors }}
+    {% for hidden in form.hidden_fields %}
+      {{ hidden }}
+    {% endfor %}
+    {% for field in form %}
+      {% if not field.is_hidden %}
+        <label class="{% if field.name == 'comment' %}wide{% endif %}">
+          <span>{{ field.label }}</span>
+          {{ field }}
+          {{ field.errors }}
+        </label>
+      {% endif %}
+    {% endfor %}
+    <div class="actions wide">
+      <button class="primary" type="submit">Создать заказ</button>
+      <a class="button" href="{% url 'order_create' %}">Изменить тип</a>
+      <a class="button" href="{% url 'orders' %}">Отмена</a>
+    </div>
+  </form>
+</section>
+{% endblock %}

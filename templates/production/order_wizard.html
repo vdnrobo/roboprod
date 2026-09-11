@@ -1,0 +1,163 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Новый заказ{% endblock %}
+
+{% block content %}
+<section class="panel">
+  <div class="wizard-head">
+    <div>
+      <h1>Новый заказ</h1>
+      <p class="muted">
+        Тип производства: <strong>{{ selected_type_label }}</strong>.
+        Форматы файла: <strong>{{ allowed_extensions }}</strong>.
+      </p>
+    </div>
+    <a class="button" href="{% url 'order_create' %}?reset=1">Отмена</a>
+  </div>
+
+  <ol class="steps" aria-label="Шаги создания заказа">
+    <li class="{% if step == 'title' %}active{% elif wizard.title %}done{% endif %}">Название</li>
+    <li class="{% if step == 'file' %}active{% elif wizard.file %}done{% endif %}">Файл</li>
+    <li class="{% if step == 'image' %}active{% elif wizard.photo %}done{% endif %}">Изображение</li>
+    <li class="{% if step == 'details' %}active{% elif wizard.details %}done{% endif %}">Материал</li>
+    <li class="{% if step == 'confirm' %}active{% endif %}">Проверка</li>
+  </ol>
+
+  <form method="post" enctype="multipart/form-data" class="form grid-form">
+    {% csrf_token %}
+    {{ form.non_field_errors }}
+
+    {% if step == "title" %}
+      <label class="wide">
+        <span>{{ form.title.label }}</span>
+        {{ form.title }}
+        {{ form.title.errors }}
+      </label>
+    {% elif step == "file" %}
+      <label class="wide">
+        <span>{{ form.production_file.label }}</span>
+        {{ form.production_file }}
+        {{ form.production_file.errors }}
+      </label>
+      <p class="muted wide">Максимальный размер файла: 50 МБ. После загрузки сайт попробует сам построить изображение модели.</p>
+    {% elif step == "image" %}
+      <div
+        class="wide model-preview-widget paste-zone"
+        data-model-preview
+        data-source-url="{{ file_source_url }}"
+        data-save-url="{{ preview_save_url }}"
+        data-production-type="{{ wizard.production_type }}"
+        data-file-name="{{ original_file_name }}"
+        data-csrf-token="{{ csrf_token }}"
+        data-has-preview="{% if photo_preview_url %}1{% else %}0{% endif %}"
+      >
+        <div class="model-preview-head">
+          <div>
+            <h2>Изображение модели</h2>
+            <p class="muted" data-render-status>
+              {% if photo_preview_url %}
+                Изображение сохранено. Можно заменить его вручную.
+              {% else %}
+                Готовим автоматическое изображение из производственного файла.
+              {% endif %}
+            </p>
+          </div>
+          <span class="model-preview-badge" data-render-badge>PNG</span>
+        </div>
+        <img
+          class="preview model-preview-image{% if not photo_preview_url %} hidden{% endif %}"
+          {% if photo_preview_url %}src="{{ photo_preview_url }}"{% endif %}
+          alt="Предпросмотр модели"
+          data-photo-preview
+        >
+        <label>
+          <span>{{ form.photo.label }}</span>
+          {{ form.photo }}
+          {{ form.photo.errors }}
+        </label>
+        <p class="muted">Если автопостроение не удалось, загрузите изображение вручную или вставьте его через Ctrl+V.</p>
+      </div>
+    {% elif step == "details" %}
+      <label>
+        <span>{{ form.material.label }}</span>
+        {{ form.material }}
+        {{ form.material.errors }}
+      </label>
+      <label>
+        <span>{{ form.quantity.label }}</span>
+        {{ form.quantity }}
+        {{ form.quantity.errors }}
+      </label>
+      {% if form.is_priority %}
+        <label class="check wide">
+          {{ form.is_priority }}
+          <span>{{ form.is_priority.label }}</span>
+          {{ form.is_priority.errors }}
+        </label>
+        <p class="muted wide">Приоритетный заказ виден в админской очереди отдельно, а остаток копий уменьшается по мере запуска партий на печать.</p>
+      {% endif %}
+      <label class="wide">
+        <span>{{ form.comment.label }}</span>
+        {{ form.comment }}
+        {{ form.comment.errors }}
+      </label>
+    {% elif step == "confirm" %}
+      <div class="wide order-confirm-card">
+        <div class="order-confirm-card__image">
+          {% if photo_preview_url %}
+            <img class="preview" src="{{ photo_preview_url }}" alt="Предпросмотр заказа {{ draft.title }}">
+          {% endif %}
+        </div>
+        <dl class="order-confirm-card__meta">
+          <dt>Название</dt><dd>{{ draft.title }}</dd>
+          <dt>Тип</dt><dd>{{ selected_type_label }}</dd>
+          <dt>Размеры</dt>
+          <dd>
+            {% if draft.has_model_dimensions %}
+              {{ draft.model_dimensions_display }}
+            {% else %}
+              <span class="muted">Не рассчитаны</span>
+            {% endif %}
+          </dd>
+          <dt>Материал</dt><dd>{{ draft.material }}</dd>
+          <dt>Количество</dt><dd>{{ draft.quantity }}</dd>
+          <dt>Файл</dt><dd>{{ original_file_name }}</dd>
+          {% if draft.comment %}
+            <dt>Комментарий</dt><dd>{{ draft.comment|linebreaksbr }}</dd>
+          {% endif %}
+        </dl>
+      </div>
+    {% endif %}
+
+    <div class="actions wide">
+      <button class="primary" type="submit">
+        {% if step == "confirm" %}Отправить заказ{% else %}Далее{% endif %}
+      </button>
+      {% if step != "title" %}
+        {% if step == "file" %}
+          <a class="button" href="{% url 'order_create' %}?step=title">Назад</a>
+        {% elif step == "image" %}
+          <a class="button" href="{% url 'order_create' %}?step=file">Назад</a>
+        {% elif step == "details" %}
+          <a class="button" href="{% url 'order_create' %}?step=image">Назад</a>
+        {% elif step == "confirm" %}
+          <a class="button" href="{% url 'order_create' %}?step=details">Назад</a>
+        {% endif %}
+      {% else %}
+        <a class="button" href="{% url 'order_create' %}?reset=1">Изменить тип</a>
+      {% endif %}
+    </div>
+  </form>
+</section>
+{% endblock %}
+
+{% block scripts %}
+  {% if step == "image" %}
+    <script src="{% static 'vendor/three/three.min.js' %}?v=0.127.0" defer></script>
+    <script src="{% static 'vendor/three/STLLoader.js' %}?v=0.127.0" defer></script>
+    <script src="{% static 'vendor/occt/occt-import-js.js' %}?v=0.0.23" defer></script>
+    <script src="{% static 'js/photo-paste.js' %}?v=20260908-1" defer></script>
+    <script src="{% static 'js/model-renderer.js' %}?v=20260908-5" defer></script>
+  {% endif %}
+{% endblock %}

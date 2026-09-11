@@ -1,0 +1,196 @@
+{% extends "base.html" %}
+
+{% block title %}Статистика пользователя{% endblock %}
+
+{% block content %}
+<section class="section-head">
+  <div>
+    <h1>Статистика пользователя</h1>
+    <p class="muted">
+      {{ account.get_full_name|default:account.username }}
+      · {{ account.username }}
+      · {% if account.is_staff %}администратор{% else %}пользователь{% endif %}
+      · зарегистрирован {{ account.date_joined|date:"d.m.Y H:i" }}
+    </p>
+  </div>
+  <a class="button" href="{% url 'user_list' %}">Назад к пользователям</a>
+</section>
+
+<section class="panel">
+  <h2>Период</h2>
+  <form class="filters user-stats-filter" method="get">
+    <label>
+      <span>Быстрый выбор</span>
+      <select name="period">
+        {% for value, label in period.period_options %}
+          <option value="{{ value }}" {% if period.period == value %}selected{% endif %}>{{ label }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    <label>
+      <span>С даты</span>
+      <input type="date" name="start_date" value="{{ period.start_date }}">
+    </label>
+    <label>
+      <span>По дату</span>
+      <input type="date" name="end_date" value="{{ period.end_date }}">
+    </label>
+    <button class="primary" type="submit">Показать</button>
+    <a class="button" href="{% url 'user_stats' account.pk %}?period=all">Все время</a>
+  </form>
+</section>
+
+<section class="material-sections">
+  <div class="panel">
+    <h2>Заказы пользователя</h2>
+    <div class="dashboard-grid stats-grid">
+      {% for metric in customer_metrics %}
+        <article class="stat-card">
+          <span class="muted">{{ metric.label }}</span>
+          <strong>{{ metric.value }}</strong>
+        </article>
+      {% endfor %}
+      <article class="stat-card">
+        <span class="muted">Средний срок выполнения</span>
+        <strong class="stats-duration">{{ average_completion }}</strong>
+      </article>
+    </div>
+  </div>
+
+  <div class="panel">
+    <h2>Самосъем и получение</h2>
+    <div class="dashboard-grid stats-grid">
+      {% for metric in pickup_metrics %}
+        <article class="stat-card">
+          <span class="muted">{{ metric.label }}</span>
+          <strong>{{ metric.value }}</strong>
+        </article>
+      {% endfor %}
+    </div>
+  </div>
+
+  {% if admin_metrics %}
+    <div class="panel">
+      <h2>Админские действия</h2>
+      <div class="dashboard-grid stats-grid">
+        {% for metric in admin_metrics %}
+          <article class="stat-card">
+            <span class="muted">{{ metric.label }}</span>
+            <strong>{{ metric.value }}</strong>
+          </article>
+        {% endfor %}
+      </div>
+      <h3>Частые события аудита</h3>
+      <ul class="plain-list">
+        {% for row in admin_action_stats %}
+          <li><span>{{ row.action }}</span><strong>{{ row.count }}</strong></li>
+        {% empty %}
+          <li class="muted">Событий аудита за выбранный период нет.</li>
+        {% endfor %}
+      </ul>
+    </div>
+  {% endif %}
+
+  {% if duty_person %}
+    <div class="panel">
+      <h2>Дежурства</h2>
+      <p class="muted">Дежурный из списка администраторов: {{ duty_person.full_name }}</p>
+      <div class="dashboard-grid stats-grid">
+        {% for metric in duty_metrics %}
+          <article class="stat-card">
+            <span class="muted">{{ metric.label }}</span>
+            <strong>{{ metric.value }}</strong>
+          </article>
+        {% endfor %}
+      </div>
+      <h3>Последние пропуски</h3>
+      <ul class="plain-list">
+        {% for skip in duty_skip_rows %}
+          <li>
+            <span>{{ skip.unavailable_date|date:"d.m.Y" }} · {{ skip.duty_slot.unload_time|time:"H:i" }} · {{ skip.reason|default:"без причины" }}</span>
+            <strong>
+              {% if skip.replacement_person %}
+                {{ skip.replacement_person.full_name }}
+              {% elif skip.replacement_slot %}
+                {{ skip.replacement_slot.person.full_name }}
+              {% else %}
+                -
+              {% endif %}
+            </strong>
+          </li>
+        {% empty %}
+          <li class="muted">Пропусков за выбранный период нет.</li>
+        {% endfor %}
+      </ul>
+    </div>
+  {% endif %}
+
+  <div class="panel">
+    <h2>Материалы и типы производства</h2>
+    <div class="split-lists">
+      <div>
+        <h3>Типы производства</h3>
+        <ul class="plain-list">
+          {% for row in production_type_stats %}
+            <li><span>{{ row.label }}</span><strong>{{ row.count }}</strong></li>
+          {% empty %}
+            <li class="muted">Заказов за выбранный период нет.</li>
+          {% endfor %}
+        </ul>
+      </div>
+      <div>
+        <h3>Популярные материалы</h3>
+        <ul class="plain-list">
+          {% for row in material_stats %}
+            <li>
+              <span>{{ row.material__name }} · {{ row.material__color }}</span>
+              <strong>{{ row.count }}</strong>
+            </li>
+          {% empty %}
+            <li class="muted">Материалы за выбранный период не найдены.</li>
+          {% endfor %}
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <h2>История статусов заказов пользователя</h2>
+    <div class="table-wrap embedded">
+      <table>
+        <thead>
+          <tr>
+            <th>Дата</th>
+            <th>Заказ</th>
+            <th>Было</th>
+            <th>Стало</th>
+            <th>Кто изменил</th>
+            <th>Причина</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for log in recent_status_logs %}
+            <tr>
+              <td>{{ log.created_at|date:"d.m.Y H:i" }}</td>
+              <td>
+                {% if log.order %}
+                  <a href="{% url 'order_detail' log.order.pk %}">#{{ log.order.display_number }}</a>
+                {% else %}
+                  #{{ log.order_number }}
+                {% endif %}
+                <br><span class="muted">{{ log.order_title }}</span>
+              </td>
+              <td>{{ log.get_old_status_display }}</td>
+              <td>{{ log.get_new_status_display }}</td>
+              <td>{% if log.changed_by %}{{ log.changed_by.get_full_name|default:log.changed_by.username }}{% else %}-{% endif %}</td>
+              <td>{{ log.reason|default:"-" }}</td>
+            </tr>
+          {% empty %}
+            <tr><td colspan="6">Изменений статусов за выбранный период нет.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+{% endblock %}

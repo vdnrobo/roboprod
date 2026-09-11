@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+
+{% block title %}Тип производства{% endblock %}
+
+{% block content %}
+<section class="section-head">
+  <div>
+    <h1>Новый заказ</h1>
+    <p class="muted">Выберите способ производства. После выбора будут показаны только подходящие материалы и форматы файлов.</p>
+  </div>
+</section>
+
+<section class="type-grid">
+  {% for item in production_types %}
+    <a class="type-card" href="{% url 'order_create' %}?production_type={{ item.value }}">
+      <span class="type-card__label">{{ item.label }}</span>
+      <span class="type-card__formats">Форматы: {{ item.formats }}</span>
+    </a>
+  {% endfor %}
+</section>
+{% endblock %}

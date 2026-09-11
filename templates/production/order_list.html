@@ -1,0 +1,160 @@
+{% extends "base.html" %}
+
+{% block title %}Мои заказы{% endblock %}
+
+{% block content %}
+<section class="section-head">
+  <div>
+    <h1>Мои заказы</h1>
+    <p class="muted">Заявки на 3D-печать и лазерную резку.</p>
+  </div>
+  <a class="button primary" href="{% url 'order_create' %}">Новый заказ</a>
+</section>
+
+<form method="get" class="filters">
+  <label>
+    <span>{{ filter_form.status.label }}</span>
+    {{ filter_form.status }}
+  </label>
+  <label>
+    <span>{{ filter_form.production_type.label }}</span>
+    {{ filter_form.production_type }}
+  </label>
+  <label>
+    <span>{{ filter_form.material.label }}</span>
+    {{ filter_form.material }}
+  </label>
+  <label>
+    <span>{{ filter_form.sort.label }}</span>
+    {{ filter_form.sort }}
+  </label>
+  <button class="primary" type="submit">Применить</button>
+  <a class="button" href="{% url 'orders' %}">Сбросить</a>
+</form>
+
+{% if drafts %}
+  <section class="panel reminders">
+    <h2>Черновики</h2>
+    <div class="reminder-list">
+      {% for draft in drafts %}
+        <article class="reminder-item">
+          <div>
+            <strong>{{ draft.title|default:"Без названия" }}</strong>
+            <br>
+            <span class="muted">{{ draft.get_production_type_display }} · {{ draft.material|default:"материал не выбран" }} · обновлен {{ draft.updated_at|date:"d.m.Y H:i" }}</span>
+          </div>
+          <div class="row-actions">
+            <a class="button primary" href="{% url 'order_draft_continue' draft.pk %}">Продолжить</a>
+            <form method="post" action="{% url 'order_draft_delete' draft.pk %}">
+              {% csrf_token %}
+              <button class="danger-button" type="submit">Удалить</button>
+            </form>
+          </div>
+        </article>
+      {% endfor %}
+    </div>
+  </section>
+{% endif %}
+
+{% if self_pickup_orders %}
+  <section class="panel reminders">
+    <h2>Самосъём</h2>
+    <p class="muted">Если вы самостоятельно сняли деталь с принтера, подтвердите самосъём. Заказ будет отмечен выполненным и перемещен в архив.</p>
+    <div class="reminder-list">
+      {% for order in self_pickup_orders %}
+        <article class="reminder-item">
+          <div>
+            <strong><a href="{% url 'order_detail' order.pk %}">#{{ order.display_number }} {{ order.title }}</a></strong>
+            <br>
+            <span class="muted">{{ order.get_production_type_display }} · {{ order.material|default:"-" }} · {{ order.quantity }} шт. · {{ order.get_status_display }}</span>
+          </div>
+          <form method="post" action="{% url 'order_self_pickup' order.pk %}">
+            {% csrf_token %}
+            <button class="primary" type="submit">Подтвердить самосъём</button>
+          </form>
+        </article>
+      {% endfor %}
+    </div>
+  </section>
+{% endif %}
+
+{% if ready_orders %}
+  <section class="panel reminders">
+    <h2>Готовые заказы</h2>
+    <p class="muted">Подтвердите получение, чтобы заказ был отмечен выполненным и перемещен в архив.</p>
+    <div class="reminder-list">
+      {% for order in ready_orders %}
+        <article class="reminder-item">
+          <div>
+            <strong><a href="{% url 'order_detail' order.pk %}">#{{ order.display_number }} {{ order.title }}</a></strong>
+            <br>
+            <span class="muted">
+              {{ order.get_production_type_display }} · {{ order.material|default:"-" }} · {{ order.quantity }} шт.
+              {% if order.pickup_cell %}
+                · ячейка {{ order.pickup_cell }}
+              {% else %}
+                · ячейка пока не назначена
+              {% endif %}
+            </span>
+          </div>
+          <form method="post" action="{% url 'order_confirm_receipt' order.pk %}">
+            {% csrf_token %}
+            <button class="primary" type="submit">Подтвердить получение</button>
+          </form>
+        </article>
+      {% endfor %}
+    </div>
+  </section>
+{% endif %}
+
+{% if orders %}
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Номер</th>
+          <th>Название</th>
+          <th>Тип</th>
+          <th>Материал</th>
+          <th>Кол-во</th>
+          <th>Статус</th>
+          <th>Создан</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for order in orders %}
+          <tr>
+            <td><a href="{% url 'order_detail' order.pk %}">#{{ order.display_number }}</a></td>
+            <td>{{ order.title }}</td>
+            <td>{{ order.get_production_type_display }}</td>
+            <td>{{ order.material|default:"-" }}</td>
+            <td>{{ order.quantity }}</td>
+            <td>
+              <span class="status {{ order.status }}">{{ order.get_status_display }}</span>
+              {% if order.status == "pending" or order.status == "in_progress" %}
+                <br>
+                <span class="muted">
+                  {% if order.fresh_queue_ahead_count %}
+                    Перед вами {{ order.fresh_queue_ahead_count }} свежих заказов
+                  {% else %}
+                    Свежих заказов впереди нет
+                  {% endif %}
+                </span>
+              {% endif %}
+              {% if order.rejection_reason %}
+                <br><span class="muted">Причина: {{ order.rejection_reason }}</span>
+              {% endif %}
+            </td>
+            <td>{{ order.created_at|date:"d.m.Y H:i" }}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+{% else %}
+  <section class="empty">
+    <h2>Заказов пока нет</h2>
+    <a class="button primary" href="{% url 'order_create' %}">Создать первый заказ</a>
+  </section>
+{% endif %}
+{% endblock %}

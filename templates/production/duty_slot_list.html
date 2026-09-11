@@ -1,0 +1,203 @@
+{% extends "base.html" %}
+
+{% block title %}График дежурства{% endblock %}
+
+{% block content %}
+<section class="section-head">
+  <div>
+    <h1>График дежурства</h1>
+    <p class="muted">Создавайте разные графики и назначайте правила, какой график используется по дням недели.</p>
+  </div>
+  <div class="actions">
+    <a class="button primary" href="{% url 'duty_skip_create' %}">Пропуск дежурства</a>
+    <a class="button" href="{% url 'duty_schedule_create' %}">Новый график</a>
+    <a class="button" href="{% url 'duty_schedule_rule_create' %}">Новое правило</a>
+  </div>
+</section>
+
+<section class="panel">
+  <div class="section-head compact">
+    <div>
+      <h2>Графики</h2>
+      <p class="muted">График - это набор строк с дежурным и временем разгрузки.</p>
+    </div>
+    <a class="button" href="{% url 'duty_schedule_create' %}">Создать график</a>
+  </div>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Название</th>
+          <th>Строки</th>
+          <th>Статус</th>
+          <th>Действия</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for schedule in schedules %}
+          <tr>
+            <td><strong>{{ schedule.name }}</strong></td>
+            <td>
+              {% for slot in schedule.slots.all %}
+                <div>
+                  {{ slot.unload_time|time:"H:i" }} - {{ slot.full_name }}
+                  {% if not slot.is_active %}
+                    <span class="muted">(отключено)</span>
+                  {% endif %}
+                </div>
+              {% empty %}
+                <span class="muted">Строк пока нет.</span>
+              {% endfor %}
+            </td>
+            <td>
+              {% if schedule.is_active %}
+                <span class="status done">Активен</span>
+              {% else %}
+                <span class="status cancelled">Отключен</span>
+              {% endif %}
+            </td>
+            <td>
+              <div class="row-actions">
+                <a class="button" href="{% url 'duty_schedule_edit' schedule.pk %}">Редактировать строки</a>
+                <a class="button" href="{% url 'duty_schedule_update' schedule.pk %}">Настройки</a>
+                <a class="button danger-link" href="{% url 'duty_schedule_delete' schedule.pk %}">Удалить</a>
+              </div>
+            </td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="4">Графиков пока нет.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section class="panel">
+  <div class="section-head compact">
+    <div>
+      <h2>Правила по дням</h2>
+      <p class="muted">Например: по четвергам по умолчанию используется график `Вечерний`.</p>
+    </div>
+    <a class="button" href="{% url 'duty_schedule_rule_create' %}">Добавить правило</a>
+  </div>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>День недели</th>
+          <th>График</th>
+          <th>Статус</th>
+          <th>Действия</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for item in rules %}
+          <tr>
+            <td><strong>{{ item.label }}</strong></td>
+            <td>
+              {% if item.rule %}
+                {{ item.rule.schedule.name }}
+              {% else %}
+                <span class="muted">Правило не задано.</span>
+              {% endif %}
+            </td>
+            <td>
+              {% if item.rule and item.rule.is_active %}
+                <span class="status done">Активно</span>
+              {% elif item.rule %}
+                <span class="status cancelled">Отключено</span>
+              {% else %}
+                <span class="muted">-</span>
+              {% endif %}
+            </td>
+            <td>
+              {% if item.rule %}
+                <div class="row-actions">
+                  <a class="button" href="{% url 'duty_schedule_rule_update' item.rule.pk %}">Изменить</a>
+                  <a class="button danger-link" href="{% url 'duty_schedule_rule_delete' item.rule.pk %}">Удалить</a>
+                </div>
+              {% else %}
+                <a class="button" href="{% url 'duty_schedule_rule_create' %}">Добавить</a>
+              {% endif %}
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section class="panel">
+  <div class="section-head compact">
+    <div>
+      <h2>Администраторы-дежурные</h2>
+      <p class="muted">Список формируется автоматически из активных администраторов. ФИ меняются в разделе пользователей.</p>
+    </div>
+  </div>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Фамилия</th>
+          <th>Имя</th>
+          <th>Аккаунт</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for person in people %}
+          <tr>
+            <td>{{ person.last_name }}</td>
+            <td>{{ person.first_name }}</td>
+            <td>{% if person.user %}{{ person.user.username }}{% else %}-{% endif %}</td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="3">Активных администраторов пока нет.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section class="panel">
+  <div class="section-head compact">
+    <div>
+      <h2>Пропуски и замены</h2>
+      <p class="muted">Разовые случаи, когда дежурный не может разгрузить очередь.</p>
+    </div>
+    <a class="button" href="{% url 'duty_skip_create' %}">Добавить пропуск</a>
+  </div>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Дата</th>
+          <th>Время</th>
+          <th>Дежурный</th>
+          <th>Заменяющий</th>
+          <th>Причина</th>
+          <th>Действия</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for skip in skips %}
+          <tr>
+            <td>{{ skip.unavailable_date|date:"d.m.Y" }}</td>
+            <td>{{ skip.unavailable_time|time:"H:i" }}</td>
+            <td>{{ skip.duty_slot.full_name }}</td>
+            <td>{{ skip.replacement_full_name }}</td>
+            <td>{{ skip.reason }}</td>
+            <td>
+              <div class="row-actions">
+                <a class="button" href="{% url 'duty_skip_update' skip.pk %}">Изменить</a>
+                <a class="button danger-link" href="{% url 'duty_skip_delete' skip.pk %}">Удалить</a>
+              </div>
+            </td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="6">Пропусков пока нет.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+{% endblock %}

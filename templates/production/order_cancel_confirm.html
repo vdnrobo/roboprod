@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+
+{% block title %}Отменить заказ #{{ order.display_number }}{% endblock %}
+
+{% block content %}
+<section class="panel narrow">
+  <h1>Отменить заказ #{{ order.display_number }}?</h1>
+  <p>Заказ <strong>{{ order.title }}</strong> будет переведен в статус `Отменено`.</p>
+  <form method="post" action="{% url 'order_cancel' order.pk %}" class="actions">
+    {% csrf_token %}
+    <button class="danger-button" type="submit">Отменить заказ</button>
+    <a class="button" href="{% url 'order_detail' order.pk %}">Назад</a>
+  </form>
+</section>
+{% endblock %}

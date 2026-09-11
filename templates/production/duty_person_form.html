@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block content %}
+<section class="panel narrow">
+  <h1>{{ title }}</h1>
+  <form method="post" class="form">
+    {% csrf_token %}
+    {{ form.non_field_errors }}
+    {% for field in form %}
+      <label class="{% if field.field.widget.input_type == 'checkbox' %}check{% endif %}">
+        <span>{{ field.label }}</span>
+        {{ field }}
+        {{ field.errors }}
+      </label>
+    {% endfor %}
+    <div class="actions">
+      <button class="primary" type="submit">Сохранить</button>
+      <a class="button" href="{% url 'duty_slot_list' %}">Отмена</a>
+    </div>
+  </form>
+</section>
+{% endblock %}

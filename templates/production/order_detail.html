@@ -1,0 +1,213 @@
+{% extends "base.html" %}
+
+{% block title %}Заказ #{{ order.display_number }}{% endblock %}
+
+{% block content %}
+<section class="section-head">
+  <div>
+    <h1>Заказ #{{ order.display_number }}</h1>
+    <p class="muted">{{ order.title }}</p>
+  </div>
+  <a class="button" href="{% if user.is_staff %}{% url 'admin_order_queue' %}{% else %}{% url 'orders' %}{% endif %}">Назад</a>
+</section>
+
+<section class="details">
+  <div>
+    <h2>Параметры</h2>
+    <dl>
+      <dt>Тип производства</dt><dd>{{ order.get_production_type_display }}</dd>
+      <dt>Материал</dt><dd>{{ order.material|default:"-" }}</dd>
+      <dt>Количество</dt><dd>{{ order.quantity }}</dd>
+      {% if order.is_priority %}
+        <dt>Приоритет</dt>
+        <dd>
+          <span class="priority-badge">Приоритетный заказ</span>
+          <br>
+          <span class="muted">Осталось запустить: {{ order.priority_remaining_quantity }} из {{ order.quantity }} коп.</span>
+        </dd>
+      {% endif %}
+      <dt>Статус</dt><dd><span class="status {{ order.status }}">{{ order.get_status_display }}</span></dd>
+      {% if order.status == "ready" %}
+        <dt>Ячейка выдачи</dt>
+        <dd>
+          {% if order.pickup_cell %}
+            {{ order.pickup_cell }}
+          {% else %}
+            <span class="muted">Пока не назначена</span>
+          {% endif %}
+        </dd>
+      {% endif %}
+      {% if order.rejection_reason %}
+        <dt>Причина отклонения</dt><dd>{{ order.rejection_reason|linebreaksbr }}</dd>
+      {% endif %}
+      {% if user.is_staff %}
+        <dt>Заказчик</dt>
+        <dd>
+          {{ order.user.last_name|default:"-" }} {{ order.user.first_name|default:"" }}
+          <span class="muted">({{ order.user.username }})</span>
+        </dd>
+        <dt>Ориентировочные размеры</dt>
+        <dd>
+          {% if order.has_model_dimensions %}
+            {{ order.model_dimensions_display }}
+          {% else %}
+            <span class="muted">Не рассчитаны</span>
+          {% endif %}
+        </dd>
+      {% else %}
+        <dt>Пользователь</dt><dd>{{ order.user.username }}</dd>
+      {% endif %}
+      <dt>Создан</dt><dd>{{ order.created_at|date:"d.m.Y H:i" }}</dd>
+      {% if order.prefix_text %}
+        <dt>Внутренний ID</dt><dd>#{{ order.pk }}</dd>
+      {% endif %}
+    </dl>
+  </div>
+  <div>
+    <h2>Файлы</h2>
+    {% if order.photo %}
+      <img class="preview" src="{{ order.photo.url }}" alt="Фото модели {{ order.title }}">
+    {% endif %}
+    <p><a class="button" href="{% url 'order_file_download' order.pk %}">Скачать производственный файл</a></p>
+    {% if order.comment %}
+      <h3>Комментарий</h3>
+      <p>{{ order.comment|linebreaksbr }}</p>
+    {% endif %}
+    {% if user.is_staff and order.admin_comment %}
+      <h3>Комментарий администратора</h3>
+      <p>{{ order.admin_comment|linebreaksbr }}</p>
+    {% endif %}
+    <form method="post" action="{% url 'order_repeat' order.pk %}" class="actions">
+      {% csrf_token %}
+      <button class="button" type="submit">Повторить заказ</button>
+    </form>
+    {% if can_cancel_order %}
+      <p><a class="button danger-link" href="{% url 'order_cancel_confirm' order.pk %}">Отменить заказ</a></p>
+    {% endif %}
+    {% if can_confirm_receipt %}
+      <form method="post" action="{% url 'order_confirm_receipt' order.pk %}" class="actions">
+        {% csrf_token %}
+        <button class="primary" type="submit">Подтвердить получение</button>
+      </form>
+    {% endif %}
+    {% if can_self_pickup %}
+      <form method="post" action="{% url 'order_self_pickup' order.pk %}" class="actions">
+        {% csrf_token %}
+        <button class="primary" type="submit">Подтвердить самосъём</button>
+      </form>
+      <p class="muted">Используйте, только если вы самостоятельно сняли деталь с принтера.</p>
+    {% endif %}
+  </div>
+</section>
+
+<section class="panel order-dialog">
+  <h2>Диалог по заказу</h2>
+  {% if can_add_message %}
+    <form method="post" action="{% url 'order_message_create' order.pk %}" enctype="multipart/form-data" class="form order-message-form">
+      {% csrf_token %}
+      {{ message_form.non_field_errors }}
+      <label>
+        <span>{{ message_form.text.label }}</span>
+        {{ message_form.text }}
+        {{ message_form.text.errors }}
+      </label>
+      <label>
+        <span>{{ message_form.photo.label }}</span>
+        {{ message_form.photo }}
+        {{ message_form.photo.errors }}
+      </label>
+      <button class="primary" type="submit">Отправить сообщение</button>
+    </form>
+  {% else %}
+    <p class="muted">Диалог доступен только для чтения.</p>
+  {% endif %}
+
+  <div class="order-message-list">
+    {% for item in order_messages %}
+      <article class="order-message{% if item.author_id == user.id %} order-message--own{% endif %}">
+        <div class="order-message__head">
+          <strong>
+            {% if item.author %}
+              {% if item.author.first_name or item.author.last_name %}
+                {{ item.author.last_name }} {{ item.author.first_name }}
+              {% else %}
+                {{ item.author.username }}
+              {% endif %}
+            {% else %}
+              Системное сообщение
+            {% endif %}
+          </strong>
+          <span class="muted">{{ item.created_at|date:"d.m.Y H:i" }}</span>
+        </div>
+        {% if item.text %}
+          <p>{{ item.text|linebreaksbr }}</p>
+        {% endif %}
+        {% if item.photo %}
+          <img class="order-message__photo" src="{{ item.photo.url }}" alt="Фото в сообщении">
+        {% endif %}
+      </article>
+    {% empty %}
+      <p class="muted">Сообщений пока нет.</p>
+    {% endfor %}
+  </div>
+</section>
+
+{% if user.is_staff %}
+  {% if can_update_priority_batch %}
+    <section class="panel narrow order-detail-admin-panel">
+      <h2>Приоритетная печать</h2>
+      <p class="muted">Укажите, сколько копий поставлено на печать. Это число будет вычтено из остатка.</p>
+      <form method="post" action="{% url 'admin_order_priority_print_batch' order.pk %}" class="form">
+        {% csrf_token %}
+        <label>
+          <span>Поставлено на печать</span>
+          <input type="number" name="copies" min="1" max="{{ order.priority_remaining_quantity }}" required>
+        </label>
+        <input type="hidden" name="next" value="{{ request.path }}">
+        <button class="primary" type="submit">Списать из остатка</button>
+      </form>
+    </section>
+  {% endif %}
+
+  <section class="panel narrow order-detail-admin-panel">
+    <h2>Изменить заказ</h2>
+    <form method="post" action="{% url 'admin_order_update' order.pk %}" class="form">
+      {% csrf_token %}
+      {{ admin_form.as_p }}
+      <input type="hidden" name="next" value="{{ request.path }}">
+      <button class="primary" type="submit">Сохранить</button>
+    </form>
+  </section>
+
+{% endif %}
+
+<section class="panel order-detail-history">
+  <h2>История статусов</h2>
+  <div class="table-wrap embedded">
+    <table>
+      <thead>
+        <tr>
+          <th>Дата</th>
+          {% if user.is_staff %}<th>Кто изменил</th>{% endif %}
+          <th>Было</th>
+          <th>Стало</th>
+          <th>Причина</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for log in status_logs %}
+          <tr>
+            <td>{{ log.created_at|date:"d.m.Y H:i" }}</td>
+            {% if user.is_staff %}<td>{% if log.changed_by %}{{ log.changed_by.username }}{% else %}-{% endif %}</td>{% endif %}
+            <td>{{ log.get_old_status_display }}</td>
+            <td>{{ log.get_new_status_display }}</td>
+            <td>{{ log.reason|default:"-" }}</td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="{% if user.is_staff %}5{% else %}4{% endif %}">Изменений статуса пока нет.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+{% endblock %}

@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+
+{% block title %}{{ schedule.name }}{% endblock %}
+
+{% block content %}
+<section class="section-head">
+  <div>
+    <h1>{{ schedule.name }}</h1>
+    <p class="muted">Редактирование строк графика: дежурный и время разгрузки очереди.</p>
+  </div>
+  <a class="button" href="{% url 'duty_slot_list' %}">К графикам</a>
+</section>
+
+<section class="panel">
+  <form method="post" class="form">
+    {% csrf_token %}
+    {{ formset.management_form }}
+    {{ formset.non_form_errors }}
+    <div class="table-wrap">
+      <table class="schedule-table">
+        <thead>
+          <tr>
+            <th>Дежурный</th>
+            <th>Время разгрузки</th>
+            <th>Активно</th>
+            <th>Удалить</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for form in formset %}
+            <tr>
+              <td>
+                {{ form.id }}
+                <div class="hidden-field">{{ form.schedule }}</div>
+                {{ form.person }}
+                {{ form.person.errors }}
+              </td>
+              <td>
+                {{ form.unload_time }}
+                {{ form.unload_time.errors }}
+              </td>
+              <td class="center-cell">
+                {{ form.is_active }}
+                {{ form.is_active.errors }}
+              </td>
+              <td class="center-cell">
+                {% if form.DELETE %}
+                  {{ form.DELETE }}
+                {% endif %}
+                {{ form.non_field_errors }}
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <div class="actions">
+      <button class="primary" type="submit">Сохранить график</button>
+      <a class="button" href="{% url 'duty_slot_list' %}">Отмена</a>
+    </div>
+  </form>
+</section>
+{% endblock %}

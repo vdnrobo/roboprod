@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+
+{% block title %}Отсчеты{% endblock %}
+
+{% block content %}
+<section class="section-head">
+  <div>
+    <h1>Отсчеты</h1>
+    <p class="muted">Активные отсчеты показываются справа от основного окна сайта.</p>
+  </div>
+  <a class="button primary" href="{% url 'countdown_create' %}">Добавить отсчет</a>
+</section>
+
+<div class="table-wrap">
+  <table>
+    <thead>
+      <tr>
+        <th>Название</th>
+        <th>Дата</th>
+        <th>Осталось дней</th>
+        <th>Статус</th>
+        <th>Действия</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for countdown in countdowns %}
+        <tr>
+          <td>{{ countdown.title }}</td>
+          <td>{{ countdown.target_date|date:"d.m.Y" }}</td>
+          <td>{{ countdown.days_left }}</td>
+          <td>
+            {% if countdown.is_active %}
+              <span class="status done">Активен</span>
+            {% else %}
+              <span class="status cancelled">Отключен</span>
+            {% endif %}
+          </td>
+          <td>
+            <div class="row-actions">
+              <a class="button" href="{% url 'countdown_update' countdown.pk %}">Изменить</a>
+              <a class="button danger-link" href="{% url 'countdown_delete' countdown.pk %}">Удалить</a>
+            </div>
+          </td>
+        </tr>
+      {% empty %}
+        <tr><td colspan="5">Отсчетов пока нет.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+
+{% block title %}Удалить причину отклонения{% endblock %}
+
+{% block content %}
+<section class="panel narrow">
+  <h1>Удалить причину отклонения</h1>
+  <p>Причина <strong>{{ reason.text }}</strong> будет удалена из справочника.</p>
+  <p class="muted">Уже сохраненные причины в заказах и журнале статусов останутся текстом без изменений.</p>
+  <form method="post" class="actions">
+    {% csrf_token %}
+    <button class="danger-button" type="submit">Удалить</button>
+    <a class="button" href="{% url 'rejection_reason_list' %}">Отмена</a>
+  </form>
+</section>
+{% endblock %}

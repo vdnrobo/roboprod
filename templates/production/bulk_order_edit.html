@@ -1,0 +1,113 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Проверка массовой загрузки{% endblock %}
+
+{% block content %}
+<section class="panel">
+  <div class="section-head">
+    <div>
+      <h1>Проверка массовой загрузки</h1>
+      <p class="muted">Отредактируйте название, изображение, материал и количество для каждого файла.</p>
+    </div>
+  </div>
+
+  <form method="post" enctype="multipart/form-data" class="form">
+    {% csrf_token %}
+    <div class="bulk-material-fill" aria-label="Быстрое назначение материалов">
+      {% for group in bulk_material_groups %}
+        <div class="bulk-material-fill__item">
+          <label>
+            <span>Материал для всех: {{ group.label }}</span>
+            <select data-bulk-material-source="{{ group.production_type }}">
+              <option value="">Выберите материал</option>
+              {% for material in group.materials %}
+                <option value="{{ material.pk }}">{{ material.name }}</option>
+              {% endfor %}
+            </select>
+          </label>
+          <button type="button" class="button" data-bulk-material-apply="{{ group.production_type }}">
+            Проставить
+          </button>
+        </div>
+      {% endfor %}
+    </div>
+    <div class="table-wrap">
+      <table class="bulk-edit-table">
+        <thead>
+          <tr>
+            <th>Файл</th>
+            <th>Тип</th>
+            <th>Изображение</th>
+            <th>Название</th>
+            <th>Материал</th>
+            <th>Количество</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in rows %}
+            <tr>
+              <td>
+                {{ row.item.original_name }}
+                {{ row.form.file_token }}
+                {{ row.form.non_field_errors }}
+              </td>
+              <td>{{ row.item.production_type_label }}</td>
+              <td>
+                <div
+                  class="model-preview-widget model-preview-widget--compact paste-zone"
+                  data-model-preview
+                  data-source-url="{% url 'bulk_order_source_file' row.item.token %}"
+                  data-save-url="{% url 'bulk_order_preview_save' row.item.token %}"
+                  data-production-type="{{ row.item.production_type }}"
+                  data-file-name="{{ row.item.original_name }}"
+                  data-csrf-token="{{ csrf_token }}"
+                  data-has-preview="{% if row.item.photo %}1{% else %}0{% endif %}"
+                >
+                  <img
+                    class="preview model-preview-image{% if not row.item.photo %} hidden{% endif %}"
+                    {% if row.item.photo %}src="{% url 'bulk_order_preview_file' row.item.token %}"{% endif %}
+                    alt="Предпросмотр {{ row.item.original_name }}"
+                    data-photo-preview
+                  >
+                  <p class="muted" data-render-status>
+                    {% if row.item.photo %}Изображение сохранено{% else %}Готовим изображение{% endif %}
+                  </p>
+                  {{ row.form.photo }}
+                  {{ row.form.photo.errors }}
+                </div>
+              </td>
+              <td>
+                {{ row.form.title }}
+                {{ row.form.title.errors }}
+              </td>
+              <td data-bulk-material-cell="{{ row.item.production_type }}">
+                {{ row.form.material }}
+                {{ row.form.material.errors }}
+              </td>
+              <td>
+                {{ row.form.quantity }}
+                {{ row.form.quantity.errors }}
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <p class="muted">Если автоматическое изображение не появилось, выберите файл изображения в нужной строке или вставьте картинку через Ctrl+V, когда строка активна.</p>
+    <div class="actions">
+      <button class="primary" type="submit" name="action" value="create">Создать заказы</button>
+      <button class="danger-button" type="submit" name="action" value="cancel" formnovalidate>Отмена</button>
+    </div>
+  </form>
+</section>
+{% endblock %}
+
+{% block scripts %}
+  <script src="{% static 'vendor/three/three.min.js' %}?v=0.127.0" defer></script>
+  <script src="{% static 'vendor/three/STLLoader.js' %}?v=0.127.0" defer></script>
+  <script src="{% static 'vendor/occt/occt-import-js.js' %}?v=0.0.23" defer></script>
+  <script src="{% static 'js/photo-paste.js' %}?v=20260908-1" defer></script>
+  <script src="{% static 'js/model-renderer.js' %}?v=20260908-5" defer></script>
+  <script src="{% static 'js/bulk-order-edit.js' %}?v=20260908-1" defer></script>
+{% endblock %}

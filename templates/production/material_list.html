@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+
+{% block title %}Материалы{% endblock %}
+
+{% block content %}
+<section class="section-head">
+  <div>
+    <h1>Материалы</h1>
+    <p class="muted">Справочник материалов разделен по способу производства.</p>
+  </div>
+  <a class="button primary" href="{% url 'material_create' %}">Добавить материал</a>
+</section>
+
+<section class="material-sections">
+  <div class="panel">
+    <h2>3D-печать</h2>
+    {% include "production/material_table.html" with materials=groups.print_3d %}
+  </div>
+
+  <div class="panel">
+    <h2>Лазерная резка</h2>
+    {% include "production/material_table.html" with materials=groups.laser_cut %}
+  </div>
+
+  <div class="panel">
+    <h2>Оба типа</h2>
+    {% include "production/material_table.html" with materials=groups.both %}
+  </div>
+</section>
+{% endblock %}

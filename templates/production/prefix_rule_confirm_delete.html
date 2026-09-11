@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+
+{% block title %}Удалить правило префикса{% endblock %}
+
+{% block content %}
+<section class="panel narrow">
+  <h1>Удалить правило префикса</h1>
+  <p>Правило <strong>{{ rule }}</strong> будет удалено.</p>
+  <p class="muted">Уже созданные заказы сохранят свой публичный номер.</p>
+  <form method="post" class="actions">
+    {% csrf_token %}
+    <button class="danger-button" type="submit">Удалить</button>
+    <a class="button" href="{% url 'prefix_rule_list' %}">Отмена</a>
+  </form>
+</section>
+{% endblock %}

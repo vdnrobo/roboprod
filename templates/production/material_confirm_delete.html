@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+
+{% block title %}Удалить материал{% endblock %}
+
+{% block content %}
+<section class="panel narrow">
+  <h1>Удалить материал</h1>
+  <p>Материал <strong>{{ material.name }}</strong> будет удален полностью.</p>
+  <p class="muted">В существующих заказах поле материала станет пустым, сами заказы и их файлы сохранятся.</p>
+  <form method="post" class="actions">
+    {% csrf_token %}
+    <button class="danger-button" type="submit">Удалить</button>
+    <a class="button" href="{% url 'material_list' %}">Отмена</a>
+  </form>
+</section>
+{% endblock %}

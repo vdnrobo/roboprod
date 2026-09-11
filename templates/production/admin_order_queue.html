@@ -1,0 +1,349 @@
+{% extends "base.html" %}
+
+{% block title %}{{ page_title }}{% endblock %}
+
+{% block content %}
+<section class="section-head">
+  <div>
+    <h1>{{ page_title }}</h1>
+    <p class="muted">{{ page_description }}</p>
+  </div>
+  {% if not is_semi_printer %}
+  <div class="actions queue-header-actions">
+    {% if is_archive %}
+      <a class="button" href="{% url 'admin_order_archive_export' %}?{{ query_string }}">Экспорт CSV</a>
+      <a class="button" href="{{ ready_url }}">К выдаче</a>
+      <a class="button" href="{{ queue_url }}">К очереди</a>
+    {% elif is_ready %}
+      <a class="button" href="{% url 'admin_order_ready_export' %}?{{ query_string }}">Экспорт CSV</a>
+      <a class="button" href="{{ archive_url }}">Архив</a>
+      <a class="button" href="{{ queue_url }}">К очереди</a>
+    {% else %}
+      <a class="button" href="{% url 'admin_order_export' %}?{{ query_string }}">Экспорт CSV</a>
+      <a class="button" href="{{ ready_url }}">К выдаче</a>
+      <a class="button" href="{{ archive_url }}">Архив</a>
+      <a class="button primary" href="{% url 'bulk_order_create' %}">Массовая загрузка</a>
+    {% endif %}
+  </div>
+  {% endif %}
+</section>
+
+<input class="tools-drawer-toggle" type="checkbox" id="queue-tools-toggle">
+<label class="button mobile-tools-button" for="queue-tools-toggle">
+  {% if is_semi_printer %}Фильтры{% else %}Фильтры и массовые действия{% endif %}
+</label>
+
+<aside class="queue-tools" aria-label="{% if is_semi_printer %}Фильтры{% else %}Фильтры и массовые действия{% endif %}">
+  <div class="queue-tools__head">
+    <strong>{% if is_semi_printer %}Фильтры{% else %}Фильтры и массовые действия{% endif %}</strong>
+    <label class="button queue-tools__close" for="queue-tools-toggle">Закрыть</label>
+  </div>
+
+  {% if not is_semi_printer %}
+  <div class="queue-tools__links">
+    {% if is_archive %}
+      <a class="button" href="{% url 'admin_order_archive_export' %}?{{ query_string }}">Экспорт CSV</a>
+      <a class="button" href="{{ ready_url }}">К выдаче</a>
+      <a class="button" href="{{ queue_url }}">К очереди</a>
+    {% elif is_ready %}
+      <a class="button" href="{% url 'admin_order_ready_export' %}?{{ query_string }}">Экспорт CSV</a>
+      <a class="button" href="{{ archive_url }}">Архив</a>
+      <a class="button" href="{{ queue_url }}">К очереди</a>
+    {% else %}
+      <a class="button" href="{% url 'admin_order_export' %}?{{ query_string }}">Экспорт CSV</a>
+      <a class="button" href="{{ ready_url }}">К выдаче</a>
+      <a class="button" href="{{ archive_url }}">Архив</a>
+      <a class="button primary" href="{% url 'bulk_order_create' %}">Массовая загрузка</a>
+    {% endif %}
+  </div>
+  {% endif %}
+
+  <form method="get" class="filters">
+    <label>
+      <span>Тип</span>
+      <select name="production_type">
+        <option value="">Все</option>
+        {% for value, label in production_types %}
+          <option value="{{ value }}" {% if filters.production_type == value %}selected{% endif %}>{{ label }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    <label>
+      <span>Статус</span>
+      <select name="status">
+        <option value="">Все</option>
+        {% for value, label in statuses %}
+          <option value="{{ value }}" {% if filters.status == value %}selected{% endif %}>{{ label }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    <label>
+      <span>Материал</span>
+      <select name="material">
+        <option value="">Все</option>
+        {% for material in materials %}
+          <option value="{{ material.pk }}" {% if filters.material == material.pk|stringformat:"s" %}selected{% endif %}>{{ material.name }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    <label>
+      <span>Заказчик</span>
+      <select name="customer">
+        <option value="">Все</option>
+        {% for customer in customers %}
+          <option value="{{ customer.pk }}" {% if filters.customer == customer.pk|stringformat:"s" %}selected{% endif %}>
+            {% if customer.first_name or customer.last_name %}
+              {{ customer.first_name }} {{ customer.last_name }}
+            {% else %}
+              {{ customer.username }}
+            {% endif %}
+          </option>
+        {% endfor %}
+      </select>
+    </label>
+    <label>
+      <span>Сортировка</span>
+      <select name="sort">
+        <option value="created_at" {% if filters.sort == "created_at" %}selected{% endif %}>Сначала старые</option>
+        <option value="-created_at" {% if filters.sort == "-created_at" %}selected{% endif %}>Сначала новые</option>
+        <option value="production_type" {% if filters.sort == "production_type" %}selected{% endif %}>По типу</option>
+        <option value="status" {% if filters.sort == "status" %}selected{% endif %}>По статусу</option>
+        <option value="material" {% if filters.sort == "material" %}selected{% endif %}>По материалу</option>
+        <option value="customer" {% if filters.sort == "customer" %}selected{% endif %}>По заказчику</option>
+      </select>
+    </label>
+    <button class="primary" type="submit">Применить</button>
+    <a class="button" href="{{ reset_url }}">Сбросить</a>
+  </form>
+
+  {% if not is_semi_printer %}
+  <form id="bulk-status-form" method="post" action="{% url 'admin_orders_bulk_status_update' %}" class="bulk-status-form">
+    {% csrf_token %}
+    <input type="hidden" name="next" value="{{ request.get_full_path }}">
+    <div class="bulk-actions">
+      <label class="check">
+        <input type="checkbox" data-select-all="orders">
+        <span>Выбрать все на странице</span>
+      </label>
+      <label>
+        <span>Новый статус</span>
+        <select name="status">
+          {% for value, label in update_statuses %}
+            {% if value != "done" %}
+              <option value="{{ value }}">{{ label }}</option>
+            {% endif %}
+          {% endfor %}
+        </select>
+      </label>
+      <label>
+        <span>Стандартная причина</span>
+        <select name="standard_rejection_reason">
+          <option value="">Выберите причину</option>
+          {% for reason in rejection_reasons %}
+            <option value="{{ reason.pk }}">{{ reason.text }}</option>
+          {% endfor %}
+        </select>
+      </label>
+      <label>
+        <span>Ручная причина</span>
+        <input type="text" name="rejection_reason" placeholder="Можно указать вместо стандартной">
+      </label>
+      <button class="primary" type="submit">Изменить выбранные</button>
+    </div>
+  </form>
+  {% endif %}
+</aside>
+<label class="tools-drawer-backdrop" for="queue-tools-toggle" aria-hidden="true"></label>
+
+<div class="table-wrap">
+  <table>
+    <thead>
+      <tr>
+        {% if not is_semi_printer %}<th>Выбор</th>{% endif %}
+        <th>Номер</th>
+        <th>Название</th>
+        <th>Приоритет</th>
+        <th>Тип</th>
+        <th>Материал</th>
+        <th>Размеры</th>
+        <th>Кол-во</th>
+        <th>Осталось</th>
+        <th>Ячейка</th>
+        <th>Статус</th>
+        {% if not is_semi_printer %}<th>Комментарий администратора</th>{% endif %}
+        <th>Файл</th>
+        <th>{% if is_semi_printer %}Готовность{% else %}Обновить{% endif %}</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for order in orders %}
+        <tr>
+          {% if not is_semi_printer %}
+          <td>
+            <input form="bulk-status-form" class="row-select-checkbox" type="checkbox" name="order_ids" value="{{ order.pk }}" aria-label="Выбрать заказ #{{ order.display_number }}" data-select-item="orders">
+          </td>
+          {% endif %}
+          <td><a href="{% url 'order_detail' order.pk %}">#{{ order.display_number }}</a></td>
+          <td>
+            {{ order.title }}<br>
+            <span class="muted">
+              {% if order.user.first_name or order.user.last_name %}
+                {{ order.user.first_name }} {{ order.user.last_name }}
+              {% else %}
+                {{ order.user.username }}
+              {% endif %}
+            </span>
+          </td>
+          <td>
+            {% if order.is_priority %}
+              <span class="priority-badge">Приоритет</span>
+            {% else %}
+              <span class="muted">-</span>
+            {% endif %}
+          </td>
+          <td>{{ order.get_production_type_display }}</td>
+          <td>{{ order.material|default:"-" }}</td>
+          <td>
+            {% if order.has_model_dimensions %}
+              {{ order.model_dimensions_display }}
+            {% else %}
+              <span class="muted">-</span>
+            {% endif %}
+          </td>
+          <td>{{ order.quantity }}</td>
+          <td>
+            {% if order.is_priority %}
+              <strong>{{ order.priority_remaining_quantity }}</strong>
+              <br>
+              <span class="muted">запущено {{ order.priority_started_quantity }}</span>
+              {% if order.priority_remaining_quantity and not is_semi_printer %}
+                <form method="post" action="{% url 'admin_order_priority_print_batch' order.pk %}" class="priority-print-form">
+                  {% csrf_token %}
+                  <input
+                    type="number"
+                    name="copies"
+                    min="1"
+                    max="{{ order.priority_remaining_quantity }}"
+                    placeholder="Копии"
+                    aria-label="Количество копий, поставленных на печать"
+                  >
+                  <input type="hidden" name="next" value="{{ request.get_full_path }}">
+                  <button type="submit">Списать</button>
+                </form>
+              {% endif %}
+            {% else %}
+              <span class="muted">-</span>
+            {% endif %}
+          </td>
+          <td>
+            {% if order.pickup_cell %}
+              <strong>{{ order.pickup_cell }}</strong>
+            {% else %}
+              <span class="muted">-</span>
+            {% endif %}
+          </td>
+          <td>
+            <span class="status {{ order.status }}">{{ order.get_status_display }}</span>
+            {% if not is_semi_printer %}
+            <div class="mobile-quick-actions">
+              <form method="post" action="{% url 'admin_order_quick_status' order.pk %}">
+                {% csrf_token %}
+                <input type="hidden" name="status" value="in_progress">
+                <input type="hidden" name="next" value="{{ request.get_full_path }}">
+                <button type="submit">В работу</button>
+              </form>
+              <form method="post" action="{% url 'admin_order_quick_status' order.pk %}">
+                {% csrf_token %}
+                <input type="hidden" name="status" value="ready">
+                <input type="hidden" name="next" value="{{ request.get_full_path }}">
+                <button type="submit">Готов</button>
+              </form>
+              <details class="mobile-quick-reject">
+                <summary>Отклонить</summary>
+                <form method="post" action="{% url 'admin_order_quick_status' order.pk %}">
+                  {% csrf_token %}
+                  <input type="hidden" name="status" value="rejected">
+                  <input type="hidden" name="next" value="{{ request.get_full_path }}">
+                  <select name="standard_rejection_reason" aria-label="Стандартная причина">
+                    <option value="">Причина</option>
+                    {% for reason in rejection_reasons %}
+                      <option value="{{ reason.pk }}">{{ reason.text }}</option>
+                    {% endfor %}
+                  </select>
+                  <input type="text" name="rejection_reason" placeholder="Ручная причина" aria-label="Ручная причина">
+                  <button class="danger-button" type="submit">Отклонить</button>
+                </form>
+              </details>
+            </div>
+            {% endif %}
+          </td>
+          {% if not is_semi_printer %}<td>{{ order.admin_comment|default:"-"|linebreaksbr }}</td>{% endif %}
+          <td><a href="{% url 'order_file_download' order.pk %}">скачать</a></td>
+          <td>
+            {% if is_semi_printer %}
+            <form method="post" action="{% url 'production_order_mark_ready' order.pk %}" class="inline-form inline-form--ready">
+              {% csrf_token %}
+              <select name="pickup_cell" aria-label="Ячейка выдачи">
+                <option value="">Без ячейки</option>
+                {% for value, label in pickup_cell_choices %}
+                  <option value="{{ value }}" {% if order.pickup_cell == value %}selected{% endif %}>Ячейка {{ label }}</option>
+                {% endfor %}
+              </select>
+              <input type="hidden" name="next" value="{{ request.get_full_path }}">
+              <button class="primary" type="submit">Готов</button>
+            </form>
+            {% else %}
+            <form method="post" action="{% url 'admin_order_update' order.pk %}" class="inline-form">
+              {% csrf_token %}
+              <select name="status" aria-label="Статус">
+                {% for value, label in update_statuses %}
+                  {% if value != "done" or order.status == "done" %}
+                    <option value="{{ value }}" {% if order.status == value %}selected{% endif %}>{{ label }}</option>
+                  {% endif %}
+                {% endfor %}
+              </select>
+              <select name="material" aria-label="Материал">
+                {% for material in materials %}
+                  <option value="{{ material.pk }}" {% if order.material_id == material.pk %}selected{% endif %}>{{ material.name }}</option>
+                {% endfor %}
+              </select>
+              <select name="pickup_cell" aria-label="Ячейка выдачи">
+                <option value="">Без ячейки</option>
+                {% for value, label in pickup_cell_choices %}
+                  <option value="{{ value }}" {% if order.pickup_cell == value %}selected{% endif %}>Ячейка {{ label }}</option>
+                {% endfor %}
+              </select>
+              <select name="standard_rejection_reason" aria-label="Стандартная причина отклонения">
+                <option value="">Стандартная причина</option>
+                {% for reason in rejection_reasons %}
+                  <option value="{{ reason.pk }}">{{ reason.text }}</option>
+                {% endfor %}
+              </select>
+              <input
+                type="text"
+                name="admin_comment"
+                value="{{ order.admin_comment }}"
+                placeholder="Комментарий администратора"
+                aria-label="Комментарий администратора"
+              >
+              <input
+                type="text"
+                name="rejection_reason"
+                value="{{ order.rejection_reason }}"
+                placeholder="Ручная причина"
+                aria-label="Ручная причина отклонения"
+              >
+              <input type="hidden" name="next" value="{{ request.get_full_path }}">
+              <button type="submit">OK</button>
+            </form>
+            {% endif %}
+          </td>
+        </tr>
+      {% empty %}
+        <tr><td colspan="{% if is_semi_printer %}11{% else %}14{% endif %}">Заказов по выбранным условиям нет.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}
+

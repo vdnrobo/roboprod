@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+
+{% block title %}Аудит{% endblock %}
+
+{% block content %}
+<section class="section-head">
+  <div>
+    <h1>Аудит</h1>
+    <p class="muted">Ключевые действия администраторов и пользователей.</p>
+  </div>
+</section>
+
+<div class="table-wrap">
+  <table>
+    <thead>
+      <tr>
+        <th>Дата</th>
+        <th>Кто</th>
+        <th>Действие</th>
+        <th>Тип</th>
+        <th>Объект</th>
+        <th>Изменения</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for log in logs %}
+        <tr>
+          <td>{{ log.created_at|date:"d.m.Y H:i" }}</td>
+          <td>{% if log.actor %}{{ log.actor.username }}{% else %}-{% endif %}</td>
+          <td>{{ log.action }}</td>
+          <td>{{ log.target_type }}</td>
+          <td>{{ log.target_label }}</td>
+          <td>{{ log.changes|default:"-" }}</td>
+        </tr>
+      {% empty %}
+        <tr><td colspan="6">Событий пока нет.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+
+{% block title %}Префиксы заказов{% endblock %}
+
+{% block content %}
+<section class="section-head">
+  <div>
+    <h1>Префиксы заказов</h1>
+    <p class="muted">Правила автоматического публичного номера для новых заказов.</p>
+  </div>
+  <a class="button primary" href="{% url 'prefix_rule_create' %}">Добавить правило</a>
+</section>
+
+<div class="table-wrap">
+  <table>
+    <thead>
+      <tr>
+        <th>Префикс</th>
+        <th>Период</th>
+        <th>Следующий номер</th>
+        <th>Статус</th>
+        <th>Действия</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for rule in rules %}
+        <tr>
+          <td><strong>{{ rule.prefix }}</strong></td>
+          <td>{{ rule.starts_on|date:"d.m.Y" }} - {{ rule.ends_on|date:"d.m.Y" }}</td>
+          <td>{{ rule.next_number }}</td>
+          <td>
+            {% if rule.is_current %}
+              <span class="status in_progress">Сейчас действует</span>
+            {% elif rule.is_active %}
+              <span class="status done">Активно</span>
+            {% else %}
+              <span class="status cancelled">Отключено</span>
+            {% endif %}
+          </td>
+          <td>
+            <div class="row-actions">
+              <a class="button" href="{% url 'prefix_rule_update' rule.pk %}">Изменить</a>
+              <a class="button danger-link" href="{% url 'prefix_rule_delete_orders' rule.pk %}">Удалить заказы</a>
+              <a class="button danger-link" href="{% url 'prefix_rule_delete' rule.pk %}">Удалить</a>
+            </div>
+          </td>
+        </tr>
+      {% empty %}
+        <tr><td colspan="5">Правил префиксов пока нет.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

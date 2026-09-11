@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+
+{% block title %}Вход{% endblock %}
+
+{% block content %}
+<section class="panel narrow">
+  <h1>Вход</h1>
+  <form method="post" class="form">
+    {% csrf_token %}
+    {{ form.non_field_errors }}
+    <label>
+      <span>Пользователь</span>
+      {{ form.username }}
+      {{ form.username.errors }}
+    </label>
+    <label>
+      <span>Пароль</span>
+      {{ form.password }}
+      {{ form.password.errors }}
+    </label>
+    <button class="primary" type="submit">Войти</button>
+  </form>
+  <p class="muted">Нет аккаунта? <a href="{% url 'register' %}">Зарегистрироваться</a></p>
+</section>
+{% endblock %}

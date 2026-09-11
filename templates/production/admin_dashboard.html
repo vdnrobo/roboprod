@@ -1,0 +1,102 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard{% endblock %}
+
+{% block content %}
+<section class="section-head">
+  <div>
+    <h1>Dashboard</h1>
+    <p class="muted">Оперативная картина производства и статистика заказов.</p>
+  </div>
+</section>
+
+<section class="dashboard-grid">
+  <article class="panel stat-card">
+    <span class="muted">Новые</span>
+    <strong>{{ status_counts.pending }}</strong>
+  </article>
+  <article class="panel stat-card">
+    <span class="muted">В работе</span>
+    <strong>{{ status_counts.in_progress }}</strong>
+  </article>
+  <article class="panel stat-card">
+    <span class="muted">К выдаче</span>
+    <strong>{{ status_counts.ready }}</strong>
+  </article>
+  <article class="panel stat-card">
+    <span class="muted">Приоритетные</span>
+    <strong>{{ status_counts.priority }}</strong>
+  </article>
+  <article class="panel stat-card">
+    <span class="muted">Архив за 7 дней</span>
+    <strong>{{ status_counts.archive_7d }}</strong>
+  </article>
+  <article class="panel stat-card">
+    <span class="muted">Старше 24 часов</span>
+    <strong>{{ status_counts.stale }}</strong>
+  </article>
+</section>
+
+<section class="material-sections">
+  <div class="panel">
+    <h2>Типы производства</h2>
+    <ul class="plain-list">
+      {% for row in production_stats %}
+        <li><span>{{ row.label }}</span><strong>{{ row.count }}</strong></li>
+      {% empty %}
+        <li class="muted">Нет данных.</li>
+      {% endfor %}
+    </ul>
+  </div>
+  <div class="panel">
+    <h2>Материалы</h2>
+    <ul class="plain-list">
+      {% for row in material_stats %}
+        <li><span>{{ row.material__name }}</span><strong>{{ row.count }}</strong></li>
+      {% empty %}
+        <li class="muted">Нет данных.</li>
+      {% endfor %}
+    </ul>
+  </div>
+  <div class="panel">
+    <h2>Причины отклонения</h2>
+    <ul class="plain-list">
+      {% for row in rejection_stats %}
+        <li><span>{{ row.rejection_reason }}</span><strong>{{ row.count }}</strong></li>
+      {% empty %}
+        <li class="muted">Нет данных.</li>
+      {% endfor %}
+    </ul>
+  </div>
+</section>
+
+<section class="panel">
+  <h2>Последние действия</h2>
+  <div class="table-wrap embedded">
+    <table>
+      <thead>
+        <tr>
+          <th>Дата</th>
+          <th>Кто</th>
+          <th>Действие</th>
+          <th>Объект</th>
+          <th>Изменения</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for log in recent_audit %}
+          <tr>
+            <td>{{ log.created_at|date:"d.m.Y H:i" }}</td>
+            <td>{% if log.actor %}{{ log.actor.username }}{% else %}-{% endif %}</td>
+            <td>{{ log.action }}</td>
+            <td>{{ log.target_label }}</td>
+            <td>{{ log.changes|default:"-" }}</td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="5">Событий пока нет.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+{% endblock %}
