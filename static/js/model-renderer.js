@@ -271,6 +271,14 @@
     return sweep;
   };
 
+  const normalizeParamSweep = (startParam, endParam) => {
+    let sweep = endParam - startParam;
+    while (sweep <= 0) {
+      sweep += Math.PI * 2;
+    }
+    return sweep;
+  };
+
   const arcPoints = (entity, minSegments = 16) => {
     const sweep = normalizeArcSweep(entity.startAngle, entity.endAngle);
     const segments = Math.max(minSegments, Math.ceil(sweep / 8));
@@ -283,6 +291,105 @@
       });
     }
     return points;
+  };
+
+  const ellipsePoints = (entity, minSegments = 24) => {
+    const sweep = normalizeParamSweep(entity.startParam, entity.endParam);
+    const segments = Math.max(minSegments, Math.ceil(sweep / (Math.PI / 36)));
+    const minorX = -entity.majorY * entity.ratio;
+    const minorY = entity.majorX * entity.ratio;
+    const points = [];
+    for (let index = 0; index <= segments; index += 1) {
+      const param = entity.startParam + (sweep * index) / segments;
+      points.push({
+        x: entity.x + entity.majorX * Math.cos(param) + minorX * Math.sin(param),
+        y: entity.y + entity.majorY * Math.cos(param) + minorY * Math.sin(param),
+      });
+    }
+    return points;
+  };
+
+  const bulgeSegmentPoints = (start, end, bulge) => {
+    if (!Number.isFinite(bulge) || Math.abs(bulge) < 1e-9) {
+      return [start, end];
+    }
+    const dx = end.x - start.x;
+    const dy = end.y - start.y;
+    const chord = Math.hypot(dx, dy);
+    if (!chord) {
+      return [start];
+    }
+
+    const theta = 4 * Math.atan(bulge);
+    const radius = Math.abs(chord / (2 * Math.sin(theta / 2)));
+    const midX = (start.x + end.x) / 2;
+    const midY = (start.y + end.y) / 2;
+    const normalX = -dy / chord;
+    const normalY = dx / chord;
+    const centerOffset = chord / (2 * Math.tan(theta / 2));
+    const centerX = midX + normalX * centerOffset;
+    const centerY = midY + normalY * centerOffset;
+    const startAngle = Math.atan2(start.y - centerY, start.x - centerX);
+    const endAngle = Math.atan2(end.y - centerY, end.x - centerX);
+    let sweep = endAngle - startAngle;
+    if (bulge > 0) {
+      while (sweep <= 0) sweep += Math.PI * 2;
+    } else {
+      while (sweep >= 0) sweep -= Math.PI * 2;
+    }
+    const segments = Math.max(8, Math.ceil(Math.abs(sweep) / (Math.PI / 36)));
+    const points = [];
+    for (let index = 0; index <= segments; index += 1) {
+      const angle = startAngle + (sweep * index) / segments;
+      points.push({
+        x: centerX + Math.cos(angle) * radius,
+        y: centerY + Math.sin(angle) * radius,
+      });
+    }
+    return points;
+  };
+
+  const polylinePoints = (entity) => {
+    const points = [];
+    const vertices = entity.points;
+    const segmentCount = entity.closed ? vertices.length : vertices.length - 1;
+    for (let index = 0; index < segmentCount; index += 1) {
+      const start = vertices[index];
+      const end = vertices[(index + 1) % vertices.length];
+      const segment = bulgeSegmentPoints(start, end, start.bulge || 0);
+      segment.forEach((point, pointIndex) => {
+        if (index > 0 && pointIndex === 0) {
+          return;
+        }
+        points.push(point);
+      });
+    }
+    return points;
+  };
+
+  const entityPoints = (entity) => {
+    if (entity.type === "LINE") {
+      return [
+        { x: entity.x1, y: entity.y1 },
+        { x: entity.x2, y: entity.y2 },
+      ];
+    }
+    if (entity.type === "CIRCLE") {
+      return [
+        { x: entity.x - entity.r, y: entity.y - entity.r },
+        { x: entity.x + entity.r, y: entity.y + entity.r },
+      ];
+    }
+    if (entity.type === "ARC") {
+      return arcPoints(entity);
+    }
+    if (entity.type === "ELLIPSE") {
+      return ellipsePoints(entity);
+    }
+    if (entity.type === "POLYLINE") {
+      return polylinePoints(entity);
+    }
+    return [];
   };
 
   const parseDxfEntities = (text) => {
@@ -326,6 +433,31 @@
         }
         i -= 1;
         if (arc.r > 0) entities.push(arc);
+      } else if (type === "ELLIPSE") {
+        const ellipse = {
+          type,
+          x: 0,
+          y: 0,
+          majorX: 0,
+          majorY: 0,
+          ratio: 1,
+          startParam: 0,
+          endParam: Math.PI * 2,
+        };
+        while (++i < pairs.length && pairs[i].code !== "0") {
+          const value = Number.parseFloat(pairs[i].value);
+          if (pairs[i].code === "10") ellipse.x = value;
+          if (pairs[i].code === "20") ellipse.y = value;
+          if (pairs[i].code === "11") ellipse.majorX = value;
+          if (pairs[i].code === "21") ellipse.majorY = value;
+          if (pairs[i].code === "40") ellipse.ratio = value;
+          if (pairs[i].code === "41") ellipse.startParam = value;
+          if (pairs[i].code === "42") ellipse.endParam = value;
+        }
+        i -= 1;
+        if (Math.hypot(ellipse.majorX, ellipse.majorY) > 0 && ellipse.ratio > 0) {
+          entities.push(ellipse);
+        }
       } else if (type === "LWPOLYLINE" || type === "POLYLINE") {
         const polyline = { type: "POLYLINE", points: [], closed: false };
         let current = null;
@@ -333,10 +465,11 @@
           const value = Number.parseFloat(pairs[i].value);
           if (pairs[i].code === "70") polyline.closed = (Number.parseInt(pairs[i].value, 10) & 1) === 1;
           if (pairs[i].code === "10") {
-            current = { x: value, y: 0 };
+            current = { x: value, y: 0, bulge: 0 };
             polyline.points.push(current);
           }
           if (pairs[i].code === "20" && current) current.y = value;
+          if (pairs[i].code === "42" && current) current.bulge = value;
         }
         i -= 1;
         if (polyline.points.length > 1) entities.push(polyline);
@@ -353,15 +486,7 @@
 
     const points = [];
     entities.forEach((entity) => {
-      if (entity.type === "LINE") {
-        points.push([entity.x1, entity.y1], [entity.x2, entity.y2]);
-      } else if (entity.type === "CIRCLE") {
-        points.push([entity.x - entity.r, entity.y - entity.r], [entity.x + entity.r, entity.y + entity.r]);
-      } else if (entity.type === "ARC") {
-        arcPoints(entity).forEach((point) => points.push([point.x, point.y]));
-      } else if (entity.type === "POLYLINE") {
-        entity.points.forEach((point) => points.push([point.x, point.y]));
-      }
+      entityPoints(entity).forEach((point) => points.push([point.x, point.y]));
     });
 
     const minX = Math.min(...points.map((point) => point[0]));
@@ -386,6 +511,19 @@
     const x = (value) => padding + (value - minX) * scale + (WIDTH - padding * 2 - spanX * scale) / 2;
     const y = (value) => HEIGHT - padding - (value - minY) * scale - (HEIGHT - padding * 2 - spanY * scale) / 2;
 
+    const drawPath = (pathPoints, closePath = false) => {
+      pathPoints.forEach((point, index) => {
+        if (index === 0) {
+          context.moveTo(x(point.x), y(point.y));
+        } else {
+          context.lineTo(x(point.x), y(point.y));
+        }
+      });
+      if (closePath) {
+        context.closePath();
+      }
+    };
+
     entities.forEach((entity) => {
       context.beginPath();
       if (entity.type === "LINE") {
@@ -394,24 +532,11 @@
       } else if (entity.type === "CIRCLE") {
         context.arc(x(entity.x), y(entity.y), entity.r * scale, 0, Math.PI * 2);
       } else if (entity.type === "ARC") {
-        arcPoints(entity).forEach((point, index) => {
-          if (index === 0) {
-            context.moveTo(x(point.x), y(point.y));
-          } else {
-            context.lineTo(x(point.x), y(point.y));
-          }
-        });
+        drawPath(arcPoints(entity));
+      } else if (entity.type === "ELLIPSE") {
+        drawPath(ellipsePoints(entity));
       } else if (entity.type === "POLYLINE") {
-        entity.points.forEach((point, index) => {
-          if (index === 0) {
-            context.moveTo(x(point.x), y(point.y));
-          } else {
-            context.lineTo(x(point.x), y(point.y));
-          }
-        });
-        if (entity.closed) {
-          context.closePath();
-        }
+        drawPath(polylinePoints(entity), entity.closed);
       }
       context.stroke();
     });

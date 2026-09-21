@@ -4,7 +4,7 @@ Django-приложение для управления очередью про�
 
 Репозиторий: <https://github.com/vdnrobo/roboprod>
 
-Текущая версия: `v1.0.0`.
+Текущая версия: `v1.0.1`.
 
 ## Возможности
 
@@ -133,11 +133,11 @@ git remote add origin https://github.com/vdnrobo/roboprod.git
 
 ```powershell
 git add .
-git commit -m "Release v1.0.0"
-git branch -M main
-git push -u origin main
-git tag v1.0.0
-git push origin v1.0.0
+git commit -m "Release v1.0.1"
+git branch -M master
+git push -u origin master
+git tag v1.0.1
+git push origin v1.0.1
 ```
 
 Перед push проверьте:
