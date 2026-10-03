@@ -8,7 +8,7 @@ from dotenv import load_dotenv
 BASE_DIR = Path(__file__).resolve().parent.parent
 load_dotenv(BASE_DIR / ".env", override=True)
 
-PROJECT_VERSION = "v1.0.1"
+PROJECT_VERSION = "v1.1.0"
 
 
 def env_bool(name, default=False):
@@ -27,6 +27,8 @@ DEBUG = env_bool("DEBUG", True)
 TESTING = "test" in sys.argv
 LOCAL_HTTP = DEBUG or TESTING
 ENABLE_PAGE_TRANSITIONS = env_bool("ENABLE_PAGE_TRANSITIONS", False)
+ACCOUNT_INACTIVITY_DAYS = int(os.getenv("ACCOUNT_INACTIVITY_DAYS", "90"))
+ACCOUNT_ACTIVITY_UPDATE_INTERVAL_SECONDS = int(os.getenv("ACCOUNT_ACTIVITY_UPDATE_INTERVAL_SECONDS", "3600"))
 
 ALLOWED_HOSTS = [
     host.strip()
@@ -59,6 +61,7 @@ MIDDLEWARE = [
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
+    'production.middleware.AccountActivityMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]

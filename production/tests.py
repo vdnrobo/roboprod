@@ -5,6 +5,7 @@ from pathlib import Path
 from unittest import mock
 
 from django.contrib.auth.models import Group, User
+from django.core.management import call_command
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase, override_settings
 from django.urls import reverse
@@ -12,6 +13,7 @@ from django.utils import timezone
 
 from .forms import BulkOrderItemForm, OrderCreateForm, OrderDetailsStepForm
 from .models import (
+    AccountActivity,
     AuditLog,
     Countdown,
     DutySkip,
@@ -205,6 +207,53 @@ class ProductionTests(TestCase):
         self.assertTrue(user.is_staff)
         self.assertFalse(user.groups.filter(name=SEMI_PRINTER_GROUP).exists())
         self.assertEqual(AuditLog.objects.filter(action="toggle_semi_printer").count(), 1)
+
+    def test_account_activity_updates_for_authenticated_user(self):
+        user = User.objects.create_user(
+            "active",
+            password="StrongPass12345!",
+            first_name="Active",
+            last_name="User",
+        )
+        self.client.force_login(user)
+
+        response = self.client.get(reverse("orders"))
+
+        self.assertEqual(response.status_code, 200)
+        activity = AccountActivity.objects.get(user=user)
+        self.assertGreater(activity.last_seen_at, timezone.now() - timedelta(minutes=1))
+
+    def test_prune_inactive_accounts_deletes_only_regular_stale_accounts(self):
+        now = timezone.now()
+        first_admin = User.objects.create_user(
+            "first",
+            password="StrongPass12345!",
+            is_staff=True,
+            is_superuser=True,
+        )
+        stale_admin = User.objects.create_user(
+            "stale-admin",
+            password="StrongPass12345!",
+            is_staff=True,
+            is_superuser=True,
+        )
+        stale_user = User.objects.create_user("stale-user", password="StrongPass12345!")
+        recent_user = User.objects.create_user("recent-user", password="StrongPass12345!")
+        old_seen = now - timedelta(days=120)
+        AccountActivity.objects.create(user=first_admin, last_seen_at=old_seen)
+        AccountActivity.objects.create(user=stale_admin, last_seen_at=old_seen)
+        AccountActivity.objects.create(user=stale_user, last_seen_at=old_seen)
+        AccountActivity.objects.create(user=recent_user, last_seen_at=now - timedelta(days=10))
+
+        call_command("prune_inactive_accounts", days=90, dry_run=True, verbosity=0)
+        self.assertTrue(User.objects.filter(pk=stale_user.pk).exists())
+
+        call_command("prune_inactive_accounts", days=90, verbosity=0)
+
+        self.assertTrue(User.objects.filter(pk=first_admin.pk).exists())
+        self.assertTrue(User.objects.filter(pk=stale_admin.pk).exists())
+        self.assertFalse(User.objects.filter(pk=stale_user.pk).exists())
+        self.assertTrue(User.objects.filter(pk=recent_user.pk).exists())
 
     def test_user_list_orders_newest_accounts_first(self):
         admin = User.objects.create_user(

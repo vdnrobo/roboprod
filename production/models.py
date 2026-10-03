@@ -1,4 +1,5 @@
 from pathlib import Path
+from datetime import timedelta
 
 from django.conf import settings
 from django.contrib.auth import get_user_model
@@ -50,6 +51,37 @@ def user_is_semi_printer(user):
         and not getattr(user, "is_staff", False)
         and user.groups.filter(name=SEMI_PRINTER_GROUP).exists()
     )
+
+
+class AccountActivity(models.Model):
+    user = models.OneToOneField(
+        settings.AUTH_USER_MODEL,
+        verbose_name="Пользователь",
+        on_delete=models.CASCADE,
+        related_name="account_activity",
+    )
+    last_seen_at = models.DateTimeField("Последняя активность", db_index=True)
+    updated_at = models.DateTimeField("Обновлено", auto_now=True)
+
+    class Meta:
+        ordering = ["-last_seen_at", "-id"]
+        verbose_name = "Активность аккаунта"
+        verbose_name_plural = "Активность аккаунтов"
+
+    def __str__(self):
+        return f"{self.user}: {self.last_seen_at:%d.%m.%Y %H:%M}"
+
+    @classmethod
+    def touch_user(cls, user, now=None, force=False):
+        if not getattr(user, "is_authenticated", False) or not getattr(user, "pk", None):
+            return
+        now = now or timezone.now()
+        if not force:
+            interval = timedelta(seconds=settings.ACCOUNT_ACTIVITY_UPDATE_INTERVAL_SECONDS)
+            fresh_since = now - interval
+            if cls.objects.filter(user=user, last_seen_at__gte=fresh_since).exists():
+                return
+        cls.objects.update_or_create(user=user, defaults={"last_seen_at": now})
 
 
 class Weekday(models.IntegerChoices):

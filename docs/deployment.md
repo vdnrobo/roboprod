@@ -27,6 +27,8 @@ CSRF_COOKIE_SECURE=False
 SECURE_SSL_REDIRECT=False
 SECURE_HSTS_SECONDS=0
 ENABLE_PAGE_TRANSITIONS=False
+ACCOUNT_INACTIVITY_DAYS=90
+ACCOUNT_ACTIVITY_UPDATE_INTERVAL_SECONDS=3600
 ```
 
 ## Проверки перед изменениями и деплоем
@@ -56,11 +58,15 @@ CSRF_COOKIE_SECURE=True
 SECURE_SSL_REDIRECT=False
 SECURE_HSTS_SECONDS=31536000
 ENABLE_PAGE_TRANSITIONS=False
+ACCOUNT_INACTIVITY_DAYS=90
+ACCOUNT_ACTIVITY_UPDATE_INTERVAL_SECONDS=3600
 ```
 
 HTTPS-redirect обычно делает Nginx/Certbot. Django получает `X-Forwarded-Proto`.
 
 `ENABLE_PAGE_TRANSITIONS=True` включает JS-анимацию безопасной внутренней GET-навигации. По умолчанию переходы отключены.
+
+`ACCOUNT_INACTIVITY_DAYS=90` задает срок удаления обычных аккаунтов без активности. Первый пользователь и staff/superuser аккаунты защищены от автоматического удаления по умолчанию.
 
 ## Ubuntu VPS setup
 
@@ -262,6 +268,61 @@ sudo systemctl list-timers lab-production-backup.timer
 ```bash
 sudo systemctl start lab-production-backup.service
 sudo journalctl -u lab-production-backup.service -n 80 --no-pager
+```
+
+### Автоматическая очистка неактивных аккаунтов
+
+Команда очистки:
+
+```bash
+cd /opt/lab-production
+sudo -u www-data .venv/bin/python manage.py prune_inactive_accounts --days 90 --dry-run
+sudo -u www-data .venv/bin/python manage.py prune_inactive_accounts --days 90
+```
+
+По умолчанию удаляются только обычные пользователи, чья последняя активность старше 90 дней. Первый пользователь и staff/superuser аккаунты не удаляются.
+
+`/etc/systemd/system/lab-production-prune-inactive-accounts.service`:
+
+```ini
+[Unit]
+Description=Prune inactive Lab production accounts
+
+[Service]
+Type=oneshot
+WorkingDirectory=/opt/lab-production
+User=www-data
+Group=www-data
+ExecStart=/opt/lab-production/.venv/bin/python manage.py prune_inactive_accounts --days 90
+```
+
+`/etc/systemd/system/lab-production-prune-inactive-accounts.timer`:
+
+```ini
+[Unit]
+Description=Daily inactive account cleanup for Lab production
+
+[Timer]
+OnCalendar=*-*-* 03:40:00
+Persistent=true
+
+[Install]
+WantedBy=timers.target
+```
+
+Включение:
+
+```bash
+sudo systemctl daemon-reload
+sudo systemctl enable --now lab-production-prune-inactive-accounts.timer
+sudo systemctl list-timers lab-production-prune-inactive-accounts.timer
+```
+
+Тестовый запуск:
+
+```bash
+sudo systemctl start lab-production-prune-inactive-accounts.service
+sudo journalctl -u lab-production-prune-inactive-accounts.service -n 80 --no-pager
 ```
 
 ### Восстановление SQLite backup

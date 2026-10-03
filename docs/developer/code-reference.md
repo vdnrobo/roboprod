@@ -69,6 +69,12 @@
 - `order_draft_file_upload_to(instance, filename)` - путь файла черновика.
 - `order_draft_photo_upload_to(instance, filename)` - путь фото черновика.
 
+### `AccountActivity`
+
+- Поля: пользователь, последняя активность, дата обновления.
+- `touch_user(user, now=None, force=False)` - обновляет `last_seen_at` для авторизованного пользователя с throttling по `ACCOUNT_ACTIVITY_UPDATE_INTERVAL_SECONDS`.
+- Используется middleware и командой фоновой очистки неактивных аккаунтов.
+
 ### `Material`
 
 - Поля: `name`, `color`, `production_type`, `is_active`, `created_at`.
@@ -430,8 +436,13 @@
 
 ## `production/middleware.py`
 
+- `AccountActivityMiddleware.__call__(request)` - периодически обновляет `AccountActivity.last_seen_at` для авторизованных пользователей.
 - `SecurityHeadersMiddleware.__init__(get_response)` - сохраняет следующий middleware/view.
 - `SecurityHeadersMiddleware.__call__(request)` - добавляет security headers и CSP для всех путей, кроме `/django-admin/`.
+
+## `production/management/commands/prune_inactive_accounts.py`
+
+- `prune_inactive_accounts` - удаляет обычные аккаунты с `AccountActivity.last_seen_at` старше `ACCOUNT_INACTIVITY_DAYS`, поддерживает `--days`, `--dry-run` и `--include-staff`.
 
 ## `scripts/server_backup.sh`
 
@@ -479,6 +490,7 @@
 - `0021_order_model_depth_order_model_height_and_more.py` - добавляет ориентировочные размеры модели/чертежа к заказу и черновику.
 - `0022_orderdraft_is_priority_ordermessage.py` - добавляет признак приоритетного черновика и сообщения диалога по заказу.
 - `0023_seed_semi_printer_group.py` - создает Django-группу `semi_printer` для ограниченной роли полупечатника.
+- `0024_accountactivity.py` - добавляет модель активности аккаунтов и заполняет ее для существующих пользователей.
 
 ## Тестовые функции `production/tests.py`
 

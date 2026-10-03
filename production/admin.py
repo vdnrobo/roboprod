@@ -1,6 +1,7 @@
 from django.contrib import admin
 
 from .models import (
+    AccountActivity,
     AuditLog,
     Countdown,
     DutySkip,
@@ -19,6 +20,20 @@ from .models import (
     RejectionReason,
     admin_duty_people_queryset,
 )
+
+
+@admin.register(AccountActivity)
+class AccountActivityAdmin(admin.ModelAdmin):
+    list_display = ("user", "last_seen_at", "updated_at")
+    list_filter = ("last_seen_at",)
+    search_fields = ("user__username", "user__last_name", "user__first_name", "user__email")
+    readonly_fields = ("user", "last_seen_at", "updated_at")
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False
 
 
 @admin.register(Material)

@@ -19,6 +19,7 @@ Django-приложение для управления очередью про�
 - CSV-экспорт, dashboard, журнал статусов и аудит.
 - Закрепленные объявления, отсчеты и график дежурства.
 - Опциональные переходы между страницами через `ENABLE_PAGE_TRANSITIONS`.
+- Отслеживание активности аккаунтов и фоновая очистка неактивных пользователей.
 
 ## Быстрый запуск
 
@@ -56,6 +57,8 @@ http://127.0.0.1:8000/
 - `DATABASE_URL` - PostgreSQL DSN для production. Если не задан, используется SQLite.
 - `SESSION_COOKIE_SECURE`, `CSRF_COOKIE_SECURE` - secure-cookie для HTTPS.
 - `ENABLE_PAGE_TRANSITIONS` - включает JS-переходы страниц. По умолчанию `False`.
+- `ACCOUNT_INACTIVITY_DAYS` - срок неактивности обычного аккаунта перед удалением, по умолчанию `90`.
+- `ACCOUNT_ACTIVITY_UPDATE_INTERVAL_SECONDS` - минимальный интервал обновления активности, по умолчанию `3600`.
 
 Не коммитьте реальный `.env`, базу, uploads и backup-архивы. Они исключены в [.gitignore](.gitignore).
 
