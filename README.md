@@ -149,7 +149,3 @@ git push origin v1.0.1
 git status --short
 git check-ignore .env db.sqlite3 media staticfiles *.tar.gz
 ```
-
-## License
-
-Лицензия пока не указана. Добавьте `LICENSE`, если проект должен быть публично переиспользуемым.
