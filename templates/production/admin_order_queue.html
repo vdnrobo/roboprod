@@ -172,7 +172,7 @@
         <th>Статус</th>
         {% if not is_semi_printer %}<th>Комментарий администратора</th>{% endif %}
         <th>Файл</th>
-        <th>{% if is_semi_printer %}Готовность{% else %}Обновить{% endif %}</th>
+        <th>{% if is_semi_printer %}Статус{% else %}Обновить{% endif %}</th>
       </tr>
     </thead>
     <tbody>
@@ -291,6 +291,10 @@
               </select>
               <input type="hidden" name="next" value="{{ request.get_full_path }}">
               <button class="primary" type="submit">Готов</button>
+            </form>
+            <form method="post" action="{% url 'production_order_return_pending' order.pk %}" class="production-return-form">
+              {% csrf_token %}
+              <button type="submit">Вернуть в ожидание</button>
             </form>
             {% else %}
             <form method="post" action="{% url 'admin_order_update' order.pk %}" class="inline-form">

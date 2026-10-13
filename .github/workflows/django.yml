@@ -42,3 +42,11 @@ jobs:
 
       - name: Run tests
         run: python manage.py test
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Check model renderer
+        run: node --test scripts/test_model_renderer.cjs

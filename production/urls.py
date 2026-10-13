@@ -46,6 +46,7 @@ urlpatterns = [
     ),
     path("admin-panel/orders/bulk-status/", views.admin_orders_bulk_status_update, name="admin_orders_bulk_status_update"),
     path("production/orders/<int:pk>/mark-ready/", views.production_order_mark_ready, name="production_order_mark_ready"),
+    path("production/orders/<int:pk>/return-pending/", views.production_order_return_pending, name="production_order_return_pending"),
     path(
         "admin-panel/orders/<int:pk>/priority-print/",
         views.admin_order_priority_print_batch,

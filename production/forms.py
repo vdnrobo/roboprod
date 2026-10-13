@@ -328,9 +328,9 @@ class BulkOrderCreateForm(forms.Form):
             except ValidationError as error:
                 errors.extend(error.messages)
             ext = Path(upload.name).suffix.lower()
-            if ext not in {".stl", ".stp", ".dxf"}:
+            if ext not in set().union(*VALID_EXTENSIONS.values()):
                 errors.append(
-                    f"{upload.name}: допустимы только .stl, .stp, .dxf. "
+                    f"{upload.name}: допустимы только .stl, .stp, .step, .dxf. "
                     f"Максимальный размер файла - {format_size(MAX_UPLOAD_SIZE)}."
                 )
         if errors:

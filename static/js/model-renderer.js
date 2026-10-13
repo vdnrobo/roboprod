@@ -540,11 +540,32 @@
       }
       context.stroke();
     });
+    const pairs = pairList(text);
+    let section = "";
+    let unitCode = 0;
+    for (let index = 0; index < pairs.length; index += 1) {
+      const pair = pairs[index];
+      if (pair.code === "0" && pair.value === "SECTION") {
+        section = pairs[index + 1]?.value || "";
+      } else if (pair.code === "0" && pair.value === "ENDSEC") {
+        section = "";
+      } else if (section === "HEADER" && pair.code === "9" && pair.value === "$INSUNITS") {
+        unitCode = Number(pairs[index + 1]?.value);
+        break;
+      }
+    }
+    // Convert only reported dimensions; keep the uploaded drawing and its coordinates intact.
+    const millimetersPerUnit = [
+      1, 25.4, 304.8, 1609344, 1, 10, 1000, 1e6, 0.0000254, 0.0254,
+      914.4, 1e-7, 1e-6, 0.001, 100, 1e4, 1e5, 1e12,
+      1.495978707e14, 9.4607304725808e18, 3.085677581491367e19,
+      1200000 / 3937, 100000 / 3937, 3600000 / 3937, 6336000000 / 3937,
+    ][unitCode];
     return {
       canvas,
-      dimensions: {
-        model_width: spanX,
-        model_depth: spanY,
+      dimensions: millimetersPerUnit === undefined ? {} : {
+        model_width: spanX * millimetersPerUnit,
+        model_depth: spanY * millimetersPerUnit,
         model_height: 0,
       },
     };
@@ -632,7 +653,7 @@
         setStatus(widget, "Строим изображение 3D-модели...", "loading");
         if (extension === ".stl") {
           result = renderGeometries([stlGeometry(buffer)]);
-        } else if (extension === ".stp") {
+        } else if (extension === ".stp" || extension === ".step") {
           result = renderGeometries(await stepGeometries(buffer));
         } else {
           throw new Error("Формат файла не поддерживается для автопревью.");

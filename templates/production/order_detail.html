@@ -8,7 +8,7 @@
     <h1>Заказ #{{ order.display_number }}</h1>
     <p class="muted">{{ order.title }}</p>
   </div>
-  <a class="button" href="{% if user.is_staff %}{% url 'admin_order_queue' %}{% else %}{% url 'orders' %}{% endif %}">Назад</a>
+  <a class="button" href="{% if user.is_staff or back_to_production %}{% url 'admin_order_queue' %}{% else %}{% url 'orders' %}{% endif %}">Назад</a>
 </section>
 
 <section class="details">
@@ -40,7 +40,7 @@
       {% if order.rejection_reason %}
         <dt>Причина отклонения</dt><dd>{{ order.rejection_reason|linebreaksbr }}</dd>
       {% endif %}
-      {% if user.is_staff %}
+      {% if user.is_staff or can_manage_production_order %}
         <dt>Заказчик</dt>
         <dd>
           {{ order.user.last_name|default:"-" }} {{ order.user.first_name|default:"" }}
@@ -77,10 +77,12 @@
       <h3>Комментарий администратора</h3>
       <p>{{ order.admin_comment|linebreaksbr }}</p>
     {% endif %}
+    {% if can_repeat_order %}
     <form method="post" action="{% url 'order_repeat' order.pk %}" class="actions">
       {% csrf_token %}
       <button class="button" type="submit">Повторить заказ</button>
     </form>
+    {% endif %}
     {% if can_cancel_order %}
       <p><a class="button danger-link" href="{% url 'order_cancel_confirm' order.pk %}">Отменить заказ</a></p>
     {% endif %}
@@ -99,6 +101,26 @@
     {% endif %}
   </div>
 </section>
+
+{% if can_manage_production_order %}
+<section class="panel narrow order-detail-production-panel">
+  <h2>Производство</h2>
+  <form method="post" action="{% url 'production_order_mark_ready' order.pk %}" class="production-ready-form">
+    {% csrf_token %}
+    <select name="pickup_cell" aria-label="Ячейка выдачи">
+      <option value="">Без ячейки</option>
+      {% for value, label in pickup_cell_choices %}
+        <option value="{{ value }}" {% if order.pickup_cell == value %}selected{% endif %}>Ячейка {{ label }}</option>
+      {% endfor %}
+    </select>
+    <button class="primary" type="submit">Готов</button>
+  </form>
+  <form method="post" action="{% url 'production_order_return_pending' order.pk %}" class="production-return-form">
+    {% csrf_token %}
+    <button type="submit">Вернуть в ожидание</button>
+  </form>
+</section>
+{% endif %}
 
 <section class="panel order-dialog">
   <h2>Диалог по заказу</h2>

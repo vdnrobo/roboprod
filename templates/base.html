@@ -8,7 +8,7 @@
   <script src="{% static 'js/theme-init.js' %}?v=20260806-1"></script>
   <link rel="icon" href="{% static 'favicon.ico' %}?v=20260427-1" sizes="any">
   <link rel="shortcut icon" href="{% static 'favicon.ico' %}?v=20260427-1">
-  <link rel="stylesheet" href="{% static 'css/app.css' %}?v=20260908-7">
+  <link rel="stylesheet" href="{% static 'css/app.css' %}?v=20261013-1">
   {% if page_transitions_enabled %}
     <script src="{% static 'js/page-transitions.js' %}?v=20260908-1" defer></script>
   {% endif %}
@@ -61,6 +61,8 @@
             </div>
           </div>
         {% elif is_semi_printer_user %}
+          <a href="{% url 'orders' %}">Мои заказы</a>
+          <a href="{% url 'order_create' %}">Новый заказ</a>
           <div class="nav-group">
             <button type="button" class="nav-group__trigger">Производство</button>
             <div class="nav-menu">
@@ -126,6 +128,8 @@
                   <option value="{% url 'system_health' %}" {% if request.resolver_match.url_name == 'system_health' %}selected{% endif %}>Здоровье системы</option>
                 </optgroup>
               {% elif is_semi_printer_user %}
+                <option value="{% url 'orders' %}" {% if request.resolver_match.url_name == 'orders' %}selected{% endif %}>Мои заказы</option>
+                <option value="{% url 'order_create' %}" {% if request.resolver_match.url_name == 'order_create' %}selected{% endif %}>Новый заказ</option>
                 <optgroup label="Производство">
                   <option value="{% url 'admin_order_queue' %}" {% if request.resolver_match.url_name == 'admin_order_queue' %}selected{% endif %}>Очередь</option>
                 </optgroup>

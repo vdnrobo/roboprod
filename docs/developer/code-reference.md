@@ -408,7 +408,7 @@
 - `static/js/bulk-order-edit.js` - быстро проставляет выбранный материал во все совместимые строки массовой загрузки.
 - `static/js/photo-paste.js` - ручная вставка изображения через `Ctrl+V` в мастере заказа и строках массовой загрузки.
 - `static/js/model-render-worker.js` - чтение временного производственного файла в Web Worker, чтобы тяжелая загрузка не блокировала интерфейс.
-- `static/js/model-renderer.js` - рендерит `.stl`, `.stp` и `.dxf` в PNG 1024 x 768, считает ориентировочные габариты по bounding box, сохраняет результат через защищенный endpoint и показывает fallback к ручной загрузке.
+- `static/js/model-renderer.js` - рендерит `.stl`, `.stp`, `.step` и `.dxf` в PNG 1024 x 768, считает ориентировочные габариты по bounding box (DXF переводит в миллиметры по `$INSUNITS`), сохраняет результат через защищенный endpoint и показывает fallback к ручной загрузке.
 - `static/vendor/three/` - локально отдаваемые Three.js 0.127.0 и STLLoader.
 - `static/vendor/occt/` - локально отдаваемые occt-import-js 0.0.23 и WASM.
 

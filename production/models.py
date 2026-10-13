@@ -32,7 +32,7 @@ class OrderStatus(models.TextChoices):
 
 
 VALID_EXTENSIONS = {
-    ProductionType.PRINT_3D: {".stl", ".stp"},
+    ProductionType.PRINT_3D: {".stl", ".stp", ".step"},
     ProductionType.LASER_CUT: {".dxf"},
 }
 

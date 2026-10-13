@@ -63,6 +63,16 @@ def image_upload():
     return SimpleUploadedFile("preview.gif", GIF_BYTES, content_type="image/gif")
 
 
+def dxf_content(units=4):
+    units_header = "" if units is None else f"9\n$INSUNITS\n70\n{units}\n"
+    return (
+        "0\nSECTION\n2\nHEADER\n" + units_header
+        + "0\nENDSEC\n0\nSECTION\n2\nENTITIES\n"
+        + "0\nLINE\n10\n0\n20\n0\n11\n10\n21\n4\n"
+        + "0\nENDSEC\n0\nEOF\n"
+    ).replace("\n", "\r\n").encode("ascii")
+
+
 @override_settings(MEDIA_ROOT=TEST_MEDIA_ROOT)
 class ProductionTests(TestCase):
     @classmethod
@@ -891,7 +901,7 @@ class ProductionTests(TestCase):
 
         self.assertNotContains(response, "static/js/page-transitions.js")
         self.assertContains(response, "static/css/app.css")
-        self.assertContains(response, "20260908-7")
+        self.assertContains(response, "css/app.css?v=")
         self.assertTrue((Path(__file__).resolve().parent.parent / "static/js/page-transitions.js").exists())
 
     @override_settings(ENABLE_PAGE_TRANSITIONS=True)
@@ -1483,6 +1493,10 @@ class ProductionTests(TestCase):
         self.assertNotContains(queue_response, "Pending part")
         self.assertNotContains(queue_response, "Ready part")
         self.assertContains(queue_response, reverse("production_order_mark_ready", args=[work_order.pk]))
+        self.assertContains(queue_response, reverse("production_order_return_pending", args=[work_order.pk]))
+        self.assertContains(queue_response, f'href="{reverse("orders")}"', count=1)
+        self.assertContains(queue_response, f'value="{reverse("orders")}"', count=1)
+        self.assertContains(queue_response, "Мои заказы", count=2)
         self.assertNotContains(queue_response, reverse("admin_order_update", args=[work_order.pk]))
         self.assertNotContains(queue_response, "Экспорт CSV")
         self.assertNotContains(queue_response, "Массовая загрузка")
@@ -1492,6 +1506,72 @@ class ProductionTests(TestCase):
         self.assertEqual(self.client.get(reverse("order_file_download", args=[work_order.pk])).status_code, 200)
         self.assertEqual(self.client.get(reverse("order_file_download", args=[pending_order.pk])).status_code, 403)
         self.assertEqual(self.client.get(reverse("order_file_download", args=[ready_order.pk])).status_code, 403)
+
+        detail = self.client.get(reverse("order_detail", args=[work_order.pk]))
+        self.assertEqual(detail.status_code, 200)
+        self.assertContains(detail, "Work part")
+        self.assertContains(detail, reverse("production_order_return_pending", args=[work_order.pk]))
+        self.assertContains(detail, reverse("production_order_mark_ready", args=[work_order.pk]))
+        self.assertNotContains(detail, reverse("order_message_create", args=[work_order.pk]))
+        self.assertNotContains(detail, reverse("order_repeat", args=[work_order.pk]))
+        self.assertNotContains(detail, reverse("admin_order_update", args=[work_order.pk]))
+        self.assertEqual(self.client.get(reverse("order_detail", args=[pending_order.pk])).status_code, 403)
+        self.assertEqual(self.client.get(reverse("order_detail", args=[ready_order.pk])).status_code, 403)
+        self.assertEqual(self.client.get(reverse("orders")).status_code, 200)
+
+        own_order = Order.objects.create(
+            user=semi_printer, title="My own part", production_type=ProductionType.PRINT_3D,
+            material=self.print_material, quantity=1, photo=image_upload(), production_file=upload("own.stl"),
+        )
+        self.assertContains(self.client.get(reverse("orders")), "My own part")
+        self.assertContains(
+            self.client.get(reverse("order_detail", args=[own_order.pk])),
+            reverse("order_repeat", args=[own_order.pk]),
+        )
+
+    def test_semi_printer_can_return_only_in_progress_orders_to_pending(self):
+        owner = User.objects.create_user("owner", password="StrongPass12345!")
+        semi_printer = User.objects.create_user("semi", password="StrongPass12345!")
+        group, _ = Group.objects.get_or_create(name=SEMI_PRINTER_GROUP)
+        semi_printer.groups.add(group)
+        order = Order.objects.create(
+            user=owner, title="Failed part", production_type=ProductionType.PRINT_3D,
+            material=self.print_material, quantity=3, photo=image_upload(), production_file=upload("failed.stl"),
+            status=OrderStatus.IN_PROGRESS, rejection_reason="Old reason",
+        )
+        url = reverse("production_order_return_pending", args=[order.pk])
+        self.client.force_login(owner)
+        self.assertEqual(self.client.post(url).status_code, 302)
+        order.refresh_from_db()
+        self.assertEqual(order.status, OrderStatus.IN_PROGRESS)
+
+        self.client.force_login(semi_printer)
+        self.assertRedirects(self.client.get(url), reverse("admin_order_queue"))
+        order.refresh_from_db()
+        self.assertEqual(order.status, OrderStatus.IN_PROGRESS)
+        self.assertFalse(OrderStatusLog.objects.filter(order=order).exists())
+
+        self.assertRedirects(self.client.post(url), reverse("admin_order_queue"))
+        order.refresh_from_db()
+        self.assertEqual(order.status, OrderStatus.PENDING)
+        self.assertIsNone(order.pickup_cell)
+        self.assertEqual(order.rejection_reason, "")
+        self.assertEqual(order.quantity, 3)
+        log = OrderStatusLog.objects.get(order=order)
+        self.assertEqual(log.changed_by, semi_printer)
+        self.assertEqual(log.old_status, OrderStatus.IN_PROGRESS)
+        self.assertEqual(log.new_status, OrderStatus.PENDING)
+        self.assertEqual(AuditLog.objects.filter(action="production_order_return_pending").count(), 1)
+
+        for status in (OrderStatus.PENDING, OrderStatus.READY, OrderStatus.DONE, OrderStatus.CANCELLED, OrderStatus.REJECTED):
+            with self.subTest(status=status):
+                order.status = status
+                order.save()
+                self.assertRedirects(self.client.post(url), reverse("admin_order_queue"))
+                order.refresh_from_db()
+                self.assertEqual(order.status, status)
+        self.assertEqual(OrderStatusLog.objects.filter(order=order).count(), 1)
+        self.assertEqual(AuditLog.objects.filter(action="production_order_return_pending").count(), 1)
 
     def test_semi_printer_can_only_mark_in_progress_order_ready(self):
         admin = User.objects.create_user("admin", password="StrongPass12345!", is_staff=True)
@@ -1807,6 +1887,83 @@ class ProductionTests(TestCase):
         self.assertEqual(Order.objects.get(title="One").model_dimensions_display, "100 x 40.5 x 12 мм")
         self.assertTrue(Order.objects.filter(production_file__endswith="_3d.stl").exists())
         self.assertTrue(Order.objects.filter(production_file__endswith="_3d.stp").exists())
+
+    def test_bulk_upload_accepts_step_and_preserves_dxf_bytes(self):
+        admin = User.objects.create_user("admin", password="StrongPass12345!", is_staff=True)
+        self.client.force_login(admin)
+        sources = [
+            ("part.STEP", b"ISO-10303-21;\r\nEND-ISO-10303-21;\r\n", self.print_material),
+            ("millimeters.dxf", dxf_content(4), self.laser_material),
+            ("centimeters.dxf", dxf_content(5), self.laser_material),
+        ]
+        response = self.client.post(
+            reverse("bulk_order_create"),
+            {"files": [upload(name, content) for name, content, _ in sources]},
+        )
+        self.assertRedirects(response, f"{reverse('bulk_order_create')}?step=edit")
+        items = self.client.session["bulk_order_upload"]["items"]
+        data = {"action": "create"}
+        for index, (item, (name, content, material)) in enumerate(zip(items, sources)):
+            source = self.client.get(reverse("bulk_order_source_file", args=[item["token"]]))
+            self.assertEqual(b"".join(source.streaming_content), content)
+            source.close()
+            data.update({
+                f"item-{index}-file_token": item["token"],
+                f"item-{index}-title": name,
+                f"item-{index}-photo": image_upload(),
+                f"item-{index}-material": material.pk,
+                f"item-{index}-quantity": 1,
+            })
+        response = self.client.post(f"{reverse('bulk_order_create')}?step=edit", data)
+        self.assertRedirects(response, reverse("admin_order_queue"))
+        for name, content, _ in sources:
+            order = Order.objects.get(title=name)
+            download = self.client.get(reverse("order_file_download", args=[order.pk]))
+            self.assertEqual(b"".join(download.streaming_content), content)
+            download.close()
+        self.assertTrue(Order.objects.filter(production_file__endswith="_3d.step").exists())
+
+    def test_single_upload_and_repeat_preserve_source_file_bytes(self):
+        user = User.objects.create_user("maker", password="StrongPass12345!")
+        self.client.force_login(user)
+        sources = [
+            ("part.STEP", b"ISO-10303-21;\r\nEND-ISO-10303-21;\r\n", ProductionType.PRINT_3D, self.print_material),
+            ("millimeters.dxf", dxf_content(4), ProductionType.LASER_CUT, self.laser_material),
+            ("centimeters.dxf", dxf_content(5), ProductionType.LASER_CUT, self.laser_material),
+            ("unitless.dxf", dxf_content(None), ProductionType.LASER_CUT, self.laser_material),
+        ]
+        for name, content, production_type, material in sources:
+            with self.subTest(filename=name):
+                self.client.get(reverse("order_create"), {"production_type": production_type})
+                self.client.post(f"{reverse('order_create')}?step=title", {"title": name})
+                file_step = self.client.get(f"{reverse('order_create')}?step=file")
+                if production_type == ProductionType.PRINT_3D:
+                    self.assertContains(file_step, '.step')
+                response = self.client.post(
+                    f"{reverse('order_create')}?step=file", {"production_file": upload(name, content)},
+                )
+                self.assertRedirects(response, f"{reverse('order_create')}?step=image")
+                source = self.client.get(reverse("order_wizard_source_file"))
+                self.assertEqual(b"".join(source.streaming_content), content)
+                source.close()
+                self.client.post(f"{reverse('order_create')}?step=image", {"photo": image_upload()})
+                self.client.post(
+                    f"{reverse('order_create')}?step=details", {"material": material.pk, "quantity": 1},
+                )
+                response = self.client.post(f"{reverse('order_create')}?step=confirm")
+                order = Order.objects.get(title=name)
+                self.assertRedirects(response, reverse("order_detail", args=[order.pk]))
+                download = self.client.get(reverse("order_file_download", args=[order.pk]))
+                self.assertEqual(b"".join(download.streaming_content), content)
+                download.close()
+                order.status = OrderStatus.DONE
+                order.save()
+                response = self.client.post(reverse("order_repeat", args=[order.pk]))
+                repeated = Order.objects.exclude(pk=order.pk).filter(title=name).get()
+                self.assertRedirects(response, reverse("order_detail", args=[repeated.pk]))
+                download = self.client.get(reverse("order_file_download", args=[repeated.pk]))
+                self.assertEqual(b"".join(download.streaming_content), content)
+                download.close()
 
     def test_bulk_item_form_rejects_wrong_material_and_long_title(self):
         wrong_material_form = BulkOrderItemForm(

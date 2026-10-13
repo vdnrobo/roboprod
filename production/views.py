@@ -179,6 +179,10 @@ def can_mark_ready(order, user):
     return can_access_production_queue(user) and order.status == OrderStatus.IN_PROGRESS
 
 
+def can_view_order(order, user):
+    return order.user_id == user.id or is_admin(user) or can_mark_ready(order, user)
+
+
 def material_groups():
     materials = Material.objects.order_by("production_type", "name")
     return {
@@ -671,7 +675,7 @@ def bulk_order_preview_file(request, token):
 @login_required
 def order_file_download(request, pk):
     order = get_object_or_404(Order.objects.select_related("user"), pk=pk)
-    if order.user_id != request.user.id and not request.user.is_staff and not can_mark_ready(order, request.user):
+    if not can_view_order(order, request.user):
         raise PermissionDenied
     if not order.production_file:
         raise Http404
@@ -767,12 +771,14 @@ def order_list(request):
 @login_required
 def order_detail(request, pk):
     order = get_object_or_404(Order.objects.select_related("material", "user"), pk=pk)
-    if order.user != request.user and not request.user.is_staff:
+    if not can_view_order(order, request.user):
         raise PermissionDenied
     admin_form = AdminOrderUpdateForm(instance=order) if request.user.is_staff else None
     status_logs = order.status_logs.select_related("changed_by")
     order_messages = order.messages.select_related("author")
-    can_add_message = can_add_order_message(order)
+    can_add_message = can_add_order_message(order) and (
+        order.user_id == request.user.id or is_admin(request.user)
+    )
     production_settings = ProductionSettings.get_solo()
     return render(
         request,
@@ -785,8 +791,12 @@ def order_detail(request, pk):
             "status_logs": status_logs,
             "can_add_message": can_add_message,
             "can_cancel_order": can_customer_cancel(order, request.user),
+            "can_repeat_order": order.user_id == request.user.id or is_admin(request.user),
             "can_confirm_receipt": can_customer_confirm_receipt(order, request.user),
             "can_self_pickup": can_customer_self_pickup(order, request.user, production_settings),
+            "can_manage_production_order": is_semi_printer(request.user) and can_mark_ready(order, request.user),
+            "pickup_cell_choices": PICKUP_CELL_CHOICES,
+            "back_to_production": can_access_production_queue(request.user) and order.user_id != request.user.id,
             "can_update_priority_batch": (
                 request.user.is_staff
                 and order.is_priority
@@ -1441,6 +1451,30 @@ def production_order_mark_ready(request, pk):
 
     messages.success(request, f"Заказ #{order.display_number} перенесен в готовые к выдаче.")
     return redirect(next_url)
+
+
+@login_required
+@user_passes_test(can_access_production_queue)
+def production_order_return_pending(request, pk):
+    if request.method != "POST":
+        return redirect("admin_order_queue")
+
+    with transaction.atomic():
+        order = get_object_or_404(Order.objects.select_for_update(), pk=pk)
+        if not can_mark_ready(order, request.user):
+            messages.error(request, "Можно вернуть в ожидание только заказ в работе.")
+            return redirect("admin_order_queue")
+
+        old_status = order.status
+        order.status = OrderStatus.PENDING
+        order.pickup_cell = None
+        order.rejection_reason = ""
+        order.save(update_fields=["status", "pickup_cell", "rejection_reason", "updated_at"])
+        log_status_change(order, request.user, old_status, OrderStatus.PENDING)
+        log_audit(request.user, "production_order_return_pending", order, "Заказ возвращен в ожидание.")
+
+    messages.success(request, f"Заказ #{order.display_number} возвращен в ожидание.")
+    return redirect("admin_order_queue")
 
 
 @login_required

@@ -1276,8 +1276,29 @@ tr:last-child td {
   padding: 30px;
 }
 
-.order-detail-admin-panel {
+.order-detail-admin-panel,
+.order-detail-production-panel {
   margin-bottom: 34px;
+}
+
+.production-ready-form {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.production-ready-form select {
+  flex: 1 1 150px;
+  min-width: 0;
+}
+
+.production-return-form {
+  margin-top: 8px;
+}
+
+.production-return-form button {
+  max-width: 100%;
 }
 
 .order-detail-history {
