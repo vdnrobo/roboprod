@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+
+{% block title %}Страница не найдена{% endblock %}
+
+{% block content %}
+<section class="error-page" aria-labelledby="error-page-title">
+  <p class="error-page__code" aria-hidden="true">404</p>
+  <h1 id="error-page-title">Страница не найдена</h1>
+  <p class="error-page__message">Возможно, ссылка устарела или в адресе опечатка.</p>
+  <div class="actions">
+    {% if user.is_authenticated %}
+      <a class="button primary" href="{% url 'orders' %}">Мои заказы</a>
+      {% if can_access_production_queue_user %}
+        <a class="button" href="{% url 'admin_order_queue' %}">К производству</a>
+      {% endif %}
+    {% else %}
+      <a class="button primary" href="{% url 'login' %}">Войти</a>
+    {% endif %}
+  </div>
+</section>
+{% endblock %}

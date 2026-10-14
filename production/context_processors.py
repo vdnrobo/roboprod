@@ -6,6 +6,7 @@ from .models import (
     DutyScheduleRule,
     DutySkip,
     DutySlot,
+    LaserCuttingSlot,
     PinnedAnnouncement,
     admin_duty_people_queryset,
     user_is_semi_printer,
@@ -13,11 +14,12 @@ from .models import (
 
 
 def pinned_announcement(request):
+    authenticated = bool(getattr(request, "user", None) and request.user.is_authenticated)
     pinned = (
         PinnedAnnouncement.objects.filter(is_active=True)
         .order_by("-updated_at", "-id")
         .first()
-    )
+    ) if authenticated else None
     active_countdowns = list(Countdown.objects.filter(is_active=True).order_by("target_date", "title", "id"))
     context = {
         "project_version": settings.PROJECT_VERSION,
@@ -29,9 +31,10 @@ def pinned_announcement(request):
             and (request.user.is_staff or user_is_semi_printer(request.user))
         ),
         "pinned_announcement": pinned,
+        "laser_cutting_slots": list(LaserCuttingSlot.objects.filter(is_active=True)) if authenticated else [],
         "active_countdowns": active_countdowns,
         "has_active_countdowns": bool(active_countdowns),
-        "has_left_sidebar": bool(pinned),
+        "has_left_sidebar": bool(pinned or authenticated),
     }
     if getattr(request, "user", None) and request.user.is_authenticated and request.user.is_staff:
         admin_duty_people_queryset()
@@ -94,7 +97,7 @@ def pinned_announcement(request):
                         }
                     )
         context["active_duty_slots"] = active_duty_slots
-        context["has_left_sidebar"] = bool(pinned or active_duty_slots)
+        context["has_left_sidebar"] = bool(pinned or active_duty_slots or authenticated)
     else:
         context["active_duty_slots"] = []
     return context

@@ -16,6 +16,7 @@ from .models import (
     DutySchedule,
     DutyScheduleRule,
     DutySlot,
+    LaserCuttingSlot,
     Material,
     Order,
     OrderMessage,
@@ -586,6 +587,15 @@ class CountdownForm(forms.ModelForm):
         widgets = {
             "title": forms.TextInput(attrs={"placeholder": "Например: до соревнований"}),
             "target_date": forms.DateInput(attrs={"type": "date"}),
+        }
+
+
+class LaserCuttingSlotForm(forms.ModelForm):
+    class Meta:
+        model = LaserCuttingSlot
+        fields = ["weekday", "cutting_time", "is_active"]
+        widgets = {
+            "cutting_time": forms.TimeInput(format="%H:%M", attrs={"type": "time"}),
         }
 
 

@@ -34,6 +34,7 @@ from .forms import (
     DutyScheduleRuleForm,
     DutySlotForm,
     DutySlotScheduleFormSet,
+    LaserCuttingSlotForm,
     MaterialForm,
     OrderCreateForm,
     OrderDetailsStepForm,
@@ -59,6 +60,7 @@ from .models import (
     DutySchedule,
     DutyScheduleRule,
     DutySlot,
+    LaserCuttingSlot,
     Material,
     MaterialProductionType,
     Order,
@@ -136,6 +138,9 @@ ADMIN_MANAGEMENT_ACTIONS = (
     "create_countdown",
     "update_countdown",
     "delete_countdown",
+    "create_laser_cutting_slot",
+    "update_laser_cutting_slot",
+    "delete_laser_cutting_slot",
     "update_production_settings",
     "create_duty_slot",
     "update_duty_slot",
@@ -687,6 +692,15 @@ def order_file_download(request, pk):
         )
     except (FileNotFoundError, OSError):
         raise Http404
+
+
+def page_not_found(request, exception):
+    return render(
+        request,
+        "404.html",
+        {"has_left_sidebar": False, "has_active_countdowns": False},
+        status=404,
+    )
 
 
 @login_required
@@ -2093,8 +2107,46 @@ def info_panel(request):
             "announcements": PinnedAnnouncement.objects.order_by("-is_active", "-updated_at", "-id"),
             "countdowns": Countdown.objects.order_by("target_date", "title", "id"),
             "settings_form": settings_form,
+            "laser_cutting_schedule": LaserCuttingSlot.objects.all(),
         },
     )
+
+
+@login_required
+@user_passes_test(is_admin)
+def laser_cutting_slot_create(request):
+    form = LaserCuttingSlotForm(request.POST or None)
+    if request.method == "POST" and form.is_valid():
+        slot = form.save()
+        log_audit(request.user, "create_laser_cutting_slot", slot)
+        messages.success(request, "Время лазерной резки добавлено.")
+        return redirect("info_panel")
+    return render(request, "production/laser_cutting_slot_form.html", {"form": form, "title": "Добавить время резки"})
+
+
+@login_required
+@user_passes_test(is_admin)
+def laser_cutting_slot_update(request, pk):
+    slot = get_object_or_404(LaserCuttingSlot, pk=pk)
+    form = LaserCuttingSlotForm(request.POST or None, instance=slot)
+    if request.method == "POST" and form.is_valid():
+        slot = form.save()
+        log_audit(request.user, "update_laser_cutting_slot", slot)
+        messages.success(request, "Время лазерной резки обновлено.")
+        return redirect("info_panel")
+    return render(request, "production/laser_cutting_slot_form.html", {"form": form, "title": "Изменить время резки"})
+
+
+@login_required
+@user_passes_test(is_admin)
+def laser_cutting_slot_delete(request, pk):
+    slot = get_object_or_404(LaserCuttingSlot, pk=pk)
+    if request.method == "POST":
+        log_audit(request.user, "delete_laser_cutting_slot", slot)
+        slot.delete()
+        messages.success(request, "Время лазерной резки удалено.")
+        return redirect("info_panel")
+    return render(request, "production/laser_cutting_slot_confirm_delete.html", {"slot": slot})
 
 
 @login_required

@@ -216,6 +216,24 @@ class Countdown(models.Model):
         return "дней"
 
 
+class LaserCuttingSlot(models.Model):
+    weekday = models.PositiveSmallIntegerField("День недели", choices=Weekday.choices)
+    cutting_time = models.TimeField("Время")
+    is_active = models.BooleanField("Показывать в расписании", default=True)
+    updated_at = models.DateTimeField("Обновлено", auto_now=True)
+
+    class Meta:
+        ordering = ["weekday", "cutting_time", "id"]
+        verbose_name = "Время лазерной резки"
+        verbose_name_plural = "Расписание резки"
+        constraints = [
+            models.UniqueConstraint(fields=["weekday", "cutting_time"], name="unique_laser_cutting_slot"),
+        ]
+
+    def __str__(self):
+        return f"{self.get_weekday_display()} - {self.cutting_time:%H:%M}"
+
+
 class ProductionSettings(models.Model):
     allow_self_pickup = models.BooleanField("Разрешить самосъём заказов", default=True)
     updated_at = models.DateTimeField("Обновлено", auto_now=True)

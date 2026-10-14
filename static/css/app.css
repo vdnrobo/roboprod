@@ -222,6 +222,7 @@ a:hover {
 
 @media (min-width: 821px) {
   .pinned-announcement.mobile-collapsible:not([open]) > .mobile-collapsible__content,
+  .laser-cutting-panel.mobile-collapsible:not([open]) > .mobile-collapsible__content,
   .duty-panel.mobile-collapsible:not([open]) > .mobile-collapsible__content,
   .countdown-panel.mobile-collapsible:not([open]) > .mobile-collapsible__content {
     display: block !important;
@@ -364,6 +365,7 @@ a:hover {
 }
 
 .pinned-announcement,
+.laser-cutting-panel,
 .duty-panel,
 .countdown-panel {
   padding: 18px;
@@ -375,6 +377,10 @@ a:hover {
 
 .pinned-announcement {
   border-left: 4px solid var(--accent);
+}
+
+.laser-cutting-panel {
+  border-left: 4px solid var(--secondary);
 }
 
 .duty-panel {
@@ -397,6 +403,7 @@ a:hover {
 }
 
 .pinned-announcement__label,
+.laser-cutting-panel__label,
 .duty-panel__label,
 .countdown-panel__label {
   margin-bottom: 8px;
@@ -472,14 +479,30 @@ a:hover {
   font-weight: 750;
 }
 
-.duty-table {
+.duty-table,
+.laser-cutting-table {
   min-width: 0;
   font-size: 13px;
 }
 
 .duty-table th,
-.duty-table td {
+.duty-table td,
+.laser-cutting-table th,
+.laser-cutting-table td {
   padding: 8px 6px;
+}
+
+.laser-cutting-table {
+  table-layout: fixed;
+  width: 100%;
+}
+
+.laser-cutting-table th:first-child {
+  width: 66%;
+}
+
+.laser-cutting-table td {
+  overflow-wrap: anywhere;
 }
 
 .duty-replacement-note {
@@ -564,6 +587,40 @@ h3 {
 
 .muted {
   color: var(--muted);
+}
+
+.error-page {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  min-height: 360px;
+  padding: 24px 0;
+  text-align: center;
+}
+
+.error-page__code {
+  margin: 0;
+  color: var(--accent);
+  font-size: 96px;
+  font-weight: 850;
+  line-height: 1;
+}
+
+.error-page h1 {
+  margin: 0;
+  font-size: 28px;
+}
+
+.error-page__message {
+  max-width: 540px;
+  margin: 0;
+  color: var(--muted);
+}
+
+.error-page .actions {
+  justify-content: center;
 }
 
 .panel,
@@ -1509,6 +1566,7 @@ dd {
 
   .left-sidebar,
   .pinned-announcement,
+  .laser-cutting-panel,
   .duty-panel,
   .countdown-panel {
     position: static;
@@ -1519,12 +1577,14 @@ dd {
   }
 
   .pinned-announcement,
+  .laser-cutting-panel,
   .duty-panel,
   .countdown-panel {
     padding: 0;
   }
 
   .pinned-announcement > .mobile-collapsible__content,
+  .laser-cutting-panel > .mobile-collapsible__content,
   .duty-panel > .mobile-collapsible__content,
   .countdown-panel > .mobile-collapsible__content {
     padding: 0 16px 16px;

@@ -22,6 +22,7 @@ from .models import (
     DutyScheduleRule,
     DutySlot,
     MAX_UPLOAD_SIZE,
+    LaserCuttingSlot,
     Material,
     Order,
     OrderDraft,
@@ -89,6 +90,41 @@ class ProductionTests(TestCase):
             name="Test Acrylic",
             defaults={"production_type": ProductionType.LASER_CUT},
         )
+
+    @override_settings(DEBUG=False)
+    def test_custom_404_for_anonymous_user(self):
+        PinnedAnnouncement.objects.create(title="Private notice", body="For signed-in users only")
+        Countdown.objects.create(title="Sidebar countdown", target_date=timezone.localdate() + timedelta(days=7))
+        response = self.client.get("/missing-page/")
+        self.assertEqual(response.status_code, 404)
+        self.assertTemplateUsed(response, "404.html")
+        self.assertContains(response, "Страница не найдена", status_code=404)
+        self.assertContains(response, f'class="button primary" href="{reverse("login")}"', status_code=404)
+        self.assertNotContains(response, "Private notice", status_code=404)
+        self.assertNotContains(response, "laser-cutting-panel", status_code=404)
+        self.assertNotContains(response, "Sidebar countdown", status_code=404)
+        self.assertNotContains(response, "URL patterns", status_code=404)
+
+    @override_settings(DEBUG=False)
+    def test_custom_404_for_signed_in_roles_and_missing_order(self):
+        customer = User.objects.create_user("customer", password="StrongPass12345!")
+        semi_printer = User.objects.create_user("semi", password="StrongPass12345!")
+        group, _ = Group.objects.get_or_create(name=SEMI_PRINTER_GROUP)
+        semi_printer.groups.add(group)
+        admin = User.objects.create_user("admin", password="StrongPass12345!", is_staff=True)
+        for user in (customer, semi_printer, admin):
+            for url in ("/missing-page/", reverse("order_detail", args=[999999])):
+                with self.subTest(role=user.username, url=url):
+                    self.client.force_login(user)
+                    response = self.client.get(url)
+                    self.assertEqual(response.status_code, 404)
+                    self.assertTemplateUsed(response, "404.html")
+                    self.assertContains(response, f'class="button primary" href="{reverse("orders")}"', status_code=404)
+                    self.assertNotContains(response, "laser-cutting-panel", status_code=404)
+                    if user == customer:
+                        self.assertNotContains(response, "К производству", status_code=404)
+                    else:
+                        self.assertContains(response, "К производству", status_code=404)
 
     def test_first_registered_user_becomes_admin(self):
         response = self.client.post(
@@ -816,17 +852,138 @@ class ProductionTests(TestCase):
                 countdown = Countdown(title=f"До {days}", target_date=today + timedelta(days=days))
                 self.assertEqual(countdown.days_left_word, expected_word)
 
-    def test_empty_sidebar_blocks_are_hidden_when_not_configured(self):
+    def test_unconfigured_sidebar_shows_empty_cutting_schedule_after_login(self):
         admin = User.objects.create_user("admin", password="StrongPass12345!", is_staff=True)
         self.client.force_login(admin)
 
         response = self.client.get(reverse("admin_order_queue"))
 
         self.assertEqual(response.status_code, 200)
-        self.assertNotContains(response, "left-sidebar")
+        self.assertContains(response, "left-sidebar")
+        self.assertContains(response, "laser-cutting-panel")
+        self.assertContains(response, "Расписание пока не задано.")
         self.assertNotContains(response, "duty-panel")
         self.assertNotContains(response, "countdown-panel")
         self.assertNotContains(response, "pinned-announcement")
+
+    def test_announcements_and_cutting_schedule_are_visible_only_after_login(self):
+        announcement = PinnedAnnouncement.objects.create(title="Laser notice", body="Cutting-room notice")
+        late_tuesday = LaserCuttingSlot.objects.create(weekday=Weekday.TUESDAY, cutting_time=time(16, 30))
+        early_tuesday = LaserCuttingSlot.objects.create(weekday=Weekday.TUESDAY, cutting_time=time(9, 0))
+        thursday = LaserCuttingSlot.objects.create(weekday=Weekday.THURSDAY, cutting_time=time(16, 30))
+        friday = LaserCuttingSlot.objects.create(weekday=Weekday.FRIDAY, cutting_time=time(16, 30))
+        LaserCuttingSlot.objects.create(weekday=Weekday.SATURDAY, cutting_time=time(12, 0), is_active=False)
+
+        for name in ("login", "register"):
+            with self.subTest(anonymous_page=name):
+                response = self.client.get(reverse(name))
+                self.assertNotContains(response, announcement.title)
+                self.assertNotContains(response, announcement.body)
+                self.assertNotContains(response, "laser-cutting-panel")
+                self.assertNotContains(response, "left-sidebar")
+                self.assertIsNone(response.context["pinned_announcement"])
+                self.assertEqual(response.context["laser_cutting_slots"], [])
+
+        customer = User.objects.create_user("customer", password="StrongPass12345!")
+        semi_printer = User.objects.create_user("semi", password="StrongPass12345!")
+        group, _ = Group.objects.get_or_create(name=SEMI_PRINTER_GROUP)
+        semi_printer.groups.add(group)
+        admin = User.objects.create_user("admin", password="StrongPass12345!", is_staff=True)
+        for user in (customer, semi_printer, admin):
+            with self.subTest(role=user.username):
+                self.client.force_login(user)
+                response = self.client.get(reverse("orders"))
+                self.assertContains(response, announcement.title)
+                self.assertContains(response, announcement.body)
+                self.assertContains(response, '<th scope="col">День недели</th>')
+                self.assertContains(response, '<th scope="col">Время</th>')
+                self.assertContains(response, "16:30")
+                self.assertNotContains(response, "Суббота")
+                self.assertEqual(
+                    response.context["laser_cutting_slots"],
+                    [early_tuesday, late_tuesday, thursday, friday],
+                )
+                html = response.content.decode()
+                self.assertLess(html.index('class="pinned-announcement '), html.index('class="laser-cutting-panel '))
+
+    def test_admin_can_manage_cutting_schedule(self):
+        admin = User.objects.create_user("admin", password="StrongPass12345!", is_staff=True)
+        self.client.force_login(admin)
+        response = self.client.post(
+            reverse("laser_cutting_slot_create"),
+            {"weekday": Weekday.TUESDAY, "cutting_time": "16:30", "is_active": "on"},
+        )
+        self.assertRedirects(response, reverse("info_panel"))
+        slot = LaserCuttingSlot.objects.get()
+        self.assertEqual(slot.weekday, Weekday.TUESDAY)
+        self.assertEqual(slot.cutting_time, time(16, 30))
+        self.assertTrue(slot.is_active)
+        form_page = self.client.get(reverse("laser_cutting_slot_update", args=[slot.pk]))
+        self.assertContains(form_page, 'type="time"')
+        self.assertContains(form_page, 'value="16:30"')
+
+        response = self.client.post(
+            reverse("laser_cutting_slot_update", args=[slot.pk]),
+            {"weekday": Weekday.THURSDAY, "cutting_time": "17:15"},
+        )
+        self.assertRedirects(response, reverse("info_panel"))
+        slot.refresh_from_db()
+        self.assertEqual(slot.weekday, Weekday.THURSDAY)
+        self.assertEqual(slot.cutting_time, time(17, 15))
+        self.assertFalse(slot.is_active)
+        self.assertEqual(self.client.get(reverse("orders")).context["laser_cutting_slots"], [])
+        info = self.client.get(reverse("info_panel"))
+        self.assertIn(slot, info.context["laser_cutting_schedule"])
+
+        response = self.client.get(reverse("laser_cutting_slot_delete", args=[slot.pk]))
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(LaserCuttingSlot.objects.filter(pk=slot.pk).exists())
+        response = self.client.post(reverse("laser_cutting_slot_delete", args=[slot.pk]))
+        self.assertRedirects(response, reverse("info_panel"))
+        self.assertFalse(LaserCuttingSlot.objects.exists())
+        for action in ("create_laser_cutting_slot", "update_laser_cutting_slot", "delete_laser_cutting_slot"):
+            self.assertEqual(AuditLog.objects.filter(action=action, actor=admin).count(), 1)
+
+    def test_cutting_schedule_rejects_invalid_and_duplicate_entries(self):
+        admin = User.objects.create_user("admin", password="StrongPass12345!", is_staff=True)
+        self.client.force_login(admin)
+        LaserCuttingSlot.objects.create(weekday=Weekday.TUESDAY, cutting_time=time(16, 30))
+        for data in (
+            {"weekday": 7, "cutting_time": "16:30"},
+            {"weekday": Weekday.THURSDAY, "cutting_time": "25:00"},
+            {"weekday": Weekday.THURSDAY, "cutting_time": ""},
+            {"weekday": Weekday.TUESDAY, "cutting_time": "16:30"},
+        ):
+            with self.subTest(data=data):
+                response = self.client.post(reverse("laser_cutting_slot_create"), data)
+                self.assertEqual(response.status_code, 200)
+                self.assertTrue(response.context["form"].errors)
+                self.assertEqual(LaserCuttingSlot.objects.count(), 1)
+        self.assertFalse(AuditLog.objects.filter(action="create_laser_cutting_slot").exists())
+
+    def test_only_admin_can_edit_cutting_schedule(self):
+        slot = LaserCuttingSlot.objects.create(weekday=Weekday.TUESDAY, cutting_time=time(16, 30))
+        customer = User.objects.create_user("customer", password="StrongPass12345!")
+        semi_printer = User.objects.create_user("semi", password="StrongPass12345!")
+        group, _ = Group.objects.get_or_create(name=SEMI_PRINTER_GROUP)
+        semi_printer.groups.add(group)
+        for user in (None, customer, semi_printer):
+            with self.subTest(user=user):
+                self.client.logout()
+                if user:
+                    self.client.force_login(user)
+                for url in (
+                    reverse("laser_cutting_slot_create"),
+                    reverse("laser_cutting_slot_update", args=[slot.pk]),
+                    reverse("laser_cutting_slot_delete", args=[slot.pk]),
+                ):
+                    self.assertEqual(self.client.get(url).status_code, 302)
+                    self.assertEqual(self.client.post(url, {"weekday": Weekday.FRIDAY, "cutting_time": "12:00"}).status_code, 302)
+                slot.refresh_from_db()
+                self.assertEqual(slot.weekday, Weekday.TUESDAY)
+                self.assertEqual(slot.cutting_time, time(16, 30))
+                self.assertEqual(LaserCuttingSlot.objects.count(), 1)
+        self.assertFalse(AuditLog.objects.filter(action__endswith="laser_cutting_slot").exists())
 
     def test_admin_can_manage_duty_schedule_and_admin_layout_shows_it(self):
         admin = User.objects.create_user(

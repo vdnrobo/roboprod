@@ -9,6 +9,7 @@ from .models import (
     DutySchedule,
     DutyScheduleRule,
     DutySlot,
+    LaserCuttingSlot,
     Material,
     Order,
     OrderDraft,
@@ -67,6 +68,12 @@ class CountdownAdmin(admin.ModelAdmin):
 @admin.register(ProductionSettings)
 class ProductionSettingsAdmin(admin.ModelAdmin):
     list_display = ("allow_self_pickup", "updated_at")
+
+
+@admin.register(LaserCuttingSlot)
+class LaserCuttingSlotAdmin(admin.ModelAdmin):
+    list_display = ("weekday", "cutting_time", "is_active", "updated_at")
+    list_filter = ("weekday", "is_active")
 
 
 @admin.register(DutyPerson)
