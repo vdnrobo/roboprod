@@ -8,7 +8,7 @@ from dotenv import load_dotenv
 BASE_DIR = Path(__file__).resolve().parent.parent
 load_dotenv(BASE_DIR / ".env", override=True)
 
-PROJECT_VERSION = "v1.3.0"
+PROJECT_VERSION = "v1.3.2"
 
 
 def env_bool(name, default=False):

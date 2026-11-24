@@ -8,11 +8,11 @@
   <script src="{% static 'js/theme-init.js' %}?v=20260806-1"></script>
   <link rel="icon" href="{% static 'favicon.ico' %}?v=20260427-1" sizes="any">
   <link rel="shortcut icon" href="{% static 'favicon.ico' %}?v=20260427-1">
-  <link rel="stylesheet" href="{% static 'css/app.css' %}?v=20261014-2">
+  <link rel="stylesheet" href="{% static 'css/app.css' %}?v=20261124-1">
   {% if page_transitions_enabled %}
     <script src="{% static 'js/page-transitions.js' %}?v=20260908-1" defer></script>
   {% endif %}
-  <script src="{% static 'js/nav.js' %}?v=20260908-3" defer></script>
+  <script src="{% static 'js/nav.js' %}?v=20261124-1" defer></script>
   {% block head_extra %}{% endblock %}
 </head>
 <body>
@@ -82,7 +82,6 @@
             {% endif %}
           </button>
           <div class="nav-menu nav-menu--account">
-            <button type="button" data-theme-toggle>Темная тема</button>
             <form class="logout-form" method="post" action="{% url 'logout' %}">
               {% csrf_token %}
               <button type="submit">Выйти</button>
@@ -94,6 +93,12 @@
         <a href="{% url 'register' %}">Регистрация</a>
       {% endif %}
     </nav>
+
+    <button class="theme-switch" type="button" role="switch" aria-label="Темная тема" aria-checked="false" title="Включить темную тему" data-theme-toggle>
+      <span class="theme-switch__thumb" aria-hidden="true"></span>
+      <span class="theme-switch__icon theme-switch__icon--sun" aria-hidden="true"></span>
+      <span class="theme-switch__icon theme-switch__icon--moon" aria-hidden="true"></span>
+    </button>
 
     <details class="mobile-nav mobile-collapsible" aria-label="Навигация" data-collapsible-key="mobile-nav" open>
       <summary class="mobile-collapsible__summary">Раздел</summary>
@@ -152,7 +157,6 @@
                 {{ user.username }}
               {% endif %}
             </span>
-            <button type="button" data-theme-toggle>Темная тема</button>
             <form class="logout-form" method="post" action="{% url 'logout' %}">
               {% csrf_token %}
               <button type="submit">Выйти</button>

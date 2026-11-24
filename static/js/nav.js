@@ -89,7 +89,8 @@ document.addEventListener("DOMContentLoaded", () => {
     }
     document.cookie = `theme=${normalizedTheme}; path=/; max-age=31536000; samesite=lax`;
     themeButtons.forEach((button) => {
-      button.textContent = normalizedTheme === "dark" ? "Светлая тема" : "Темная тема";
+      button.setAttribute("aria-checked", String(normalizedTheme === "dark"));
+      button.title = normalizedTheme === "dark" ? "Включить светлую тему" : "Включить темную тему";
     });
   };
 

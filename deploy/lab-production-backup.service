@@ -1,0 +1,9 @@
+[Unit]
+Description=Back up RoboProd database, media and configuration
+After=postgresql.service
+
+[Service]
+Type=oneshot
+WorkingDirectory=/opt/lab-production
+ExecStart=/bin/bash /opt/lab-production/scripts/server_backup.sh
+UMask=0077

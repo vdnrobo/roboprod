@@ -1,0 +1,18 @@
+[Unit]
+Description=RoboProd Django application
+After=network.target postgresql.service
+
+[Service]
+User=www-data
+Group=www-data
+WorkingDirectory=/opt/lab-production
+EnvironmentFile=/opt/lab-production/.env
+ExecStart=/opt/lab-production/.venv/bin/gunicorn lab_production.wsgi:application --bind 127.0.0.1:8001 --workers 2 --timeout 120 --access-logfile - --error-logfile - --capture-output
+Restart=on-failure
+RestartSec=5
+UMask=0027
+PrivateTmp=true
+NoNewPrivileges=true
+
+[Install]
+WantedBy=multi-user.target

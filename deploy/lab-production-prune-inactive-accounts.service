@@ -1,0 +1,12 @@
+[Unit]
+Description=Delete inactive RoboProd accounts
+After=postgresql.service
+
+[Service]
+Type=oneshot
+User=www-data
+Group=www-data
+WorkingDirectory=/opt/lab-production
+EnvironmentFile=/opt/lab-production/.env
+ExecStart=/opt/lab-production/.venv/bin/python manage.py prune_inactive_accounts
+UMask=0027

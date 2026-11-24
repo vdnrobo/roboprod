@@ -9,8 +9,30 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - python-version: "3.12"
+            database-url: ""
+          - python-version: "3.14"
+            database-url: "postgresql://postgres:ci_password@127.0.0.1:5432/lab_production"
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: ci_password
+          POSTGRES_DB: lab_production
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
 
     env:
+      DATABASE_URL: ${{ matrix.database-url }}
       DEBUG: "True"
       SECRET_KEY: "django-insecure-ci-key"
       ALLOWED_HOSTS: "127.0.0.1,localhost"
@@ -26,7 +48,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: "3.12"
+          python-version: ${{ matrix.python-version }}
           cache: "pip"
 
       - name: Install dependencies
@@ -42,6 +64,11 @@ jobs:
 
       - name: Run tests
         run: python manage.py test
+
+      - name: Build production static files
+        env:
+          DEBUG: "False"
+        run: python manage.py collectstatic --noinput
 
       - name: Set up Node.js
         uses: actions/setup-node@v4

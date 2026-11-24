@@ -68,42 +68,67 @@ HTTPS-redirect обычно делает Nginx/Certbot. Django получает 
 
 `ACCOUNT_INACTIVITY_DAYS=90` задает срок удаления обычных аккаунтов без активности. Первый пользователь и staff/superuser аккаунты защищены от автоматического удаления по умолчанию.
 
-## Ubuntu VPS setup
+## Ubuntu 26.04 LTS: установка на пустой сервер
+
+Ниже используется PostgreSQL, Nginx и Gunicorn. Домен `example.com` замените своим; его DNS-запись должна указывать на сервер, порты 80 и 443 должны быть доступны. Команды выполняются от root (`sudo -i`).
+
+Ubuntu 26.04 использует Python 3.14; проект требует Django не ниже 5.2.8. Конфигурации для установки находятся в `deploy/`.
 
 ```bash
-sudo apt update
-sudo apt install -y python3-venv python3-pip postgresql nginx certbot python3-certbot-nginx
-```
-
-PostgreSQL:
-
-```sql
-CREATE DATABASE lab_production;
-CREATE USER lab_user WITH PASSWORD 'strong_password';
-ALTER ROLE lab_user SET client_encoding TO 'utf8';
-ALTER ROLE lab_user SET default_transaction_isolation TO 'read committed';
-ALTER ROLE lab_user SET timezone TO 'Europe/Minsk';
-GRANT ALL PRIVILEGES ON DATABASE lab_production TO lab_user;
-```
-
-Код:
-
-```bash
-sudo mkdir -p /opt/lab-production
-sudo chown $USER:$USER /opt/lab-production
+umask 022
+apt update
+apt install -y git python3-venv python3-pip postgresql nginx certbot python3-certbot-nginx openssl nano
+systemctl enable --now postgresql nginx
+git clone --branch v1.3.2 https://github.com/vdnrobo/roboprod.git /opt/lab-production
 cd /opt/lab-production
 python3 -m venv .venv
 .venv/bin/pip install -r requirements.txt
-.venv/bin/python manage.py migrate
-.venv/bin/python manage.py collectstatic --noinput
+sudo -u postgres createuser --pwprompt lab_user
+sudo -u postgres createdb --owner=lab_user lab_production
 ```
 
-Права:
+`createuser` запросит пароль. Используйте пароль, безопасный для URL (например, случайный hex, сгенерированный `openssl rand -hex 24`); либо закодируйте специальные символы для `DATABASE_URL`.
 
 ```bash
-sudo mkdir -p /opt/lab-production/media /opt/lab-production/staticfiles
-sudo chown -R www-data:www-data /opt/lab-production/media /opt/lab-production/staticfiles
+install -o root -g www-data -m 640 .env.example .env
+openssl rand -hex 32
+nano .env
 ```
+
+В `.env` замените `SECRET_KEY` на полученный секрет, домены в `ALLOWED_HOSTS` (без схемы) и `CSRF_TRUSTED_ORIGINS` (с `https://`), пароль в `DATABASE_URL` на пароль `lab_user`. Для одного домена уберите `www.example.com`. Сохраните `DEBUG=False`: сборка статики должна выполняться уже с этим значением, иначе production-манифест не будет подготовлен.
+
+```bash
+install -d -o www-data -g www-data media staticfiles
+sudo -u www-data .venv/bin/python manage.py migrate --noinput
+.venv/bin/python manage.py collectstatic --noinput
+chown -R www-data:www-data staticfiles
+sudo -u www-data .venv/bin/python manage.py createsuperuser
+sudo -u www-data .venv/bin/python manage.py check --deploy
+```
+
+Администратора создайте до публикации сайта, чтобы первым пользователем был владелец сайта. HTTPS-redirect выполняет Nginx/Certbot, поэтому Django может выдать предупреждение об отключенном `SECURE_SSL_REDIRECT`; не отключайте secure cookies для публичного сайта.
+
+```bash
+cp deploy/*.service deploy/*.timer /etc/systemd/system/
+cp deploy/nginx.conf /etc/nginx/sites-available/lab-production
+nano /etc/nginx/sites-available/lab-production
+ln -s /etc/nginx/sites-available/lab-production /etc/nginx/sites-enabled/lab-production
+systemctl daemon-reload
+systemctl enable --now lab-production
+nginx -t
+systemctl reload nginx
+certbot --nginx --redirect -d example.com
+certbot renew --dry-run
+systemctl enable --now lab-production-backup.timer lab-production-prune-inactive-accounts.timer
+systemctl start lab-production-backup.service
+systemctl status lab-production --no-pager
+```
+
+В конфигурации Nginx замените `server_name example.com` своим доменом; такой же домен укажите в команде Certbot. При использовании `www` добавьте его и в Nginx, и в `.env`, и вторым параметром `-d` при выпуске сертификата. Расписание systemd-таймеров использует часовой пояс сервера.
+
+После установки проверьте вход, 404 по несуществующему адресу и переключатель темы. Настройте строки расписания резки через «Объявления и отсчеты». Бэкапы находятся в `/opt/lab-production-backups`; таймер очистки использует `ACCOUNT_INACTIVITY_DAYS` из `.env`.
+
+Если запрос возвращает 500 после переключения `DEBUG=False`, повторите `collectstatic` с этим значением и перезапустите `lab-production`. Для диагностики используйте `journalctl -u lab-production -n 100 --no-pager`.
 
 ## systemd service
 
