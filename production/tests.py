@@ -1388,7 +1388,7 @@ class ProductionTests(TestCase):
             f'{order.pk}_3d_Petrov_Ivan_x2.stl',
             response["Content-Disposition"],
         )
-        response.close()
+        self.assertEqual(b"".join(response.streaming_content), b"solid test")
 
         self.client.force_login(other)
         self.assertEqual(
@@ -2063,7 +2063,6 @@ class ProductionTests(TestCase):
         for index, (item, (name, content, material)) in enumerate(zip(items, sources)):
             source = self.client.get(reverse("bulk_order_source_file", args=[item["token"]]))
             self.assertEqual(b"".join(source.streaming_content), content)
-            source.close()
             data.update({
                 f"item-{index}-file_token": item["token"],
                 f"item-{index}-title": name,
@@ -2077,7 +2076,6 @@ class ProductionTests(TestCase):
             order = Order.objects.get(title=name)
             download = self.client.get(reverse("order_file_download", args=[order.pk]))
             self.assertEqual(b"".join(download.streaming_content), content)
-            download.close()
         self.assertTrue(Order.objects.filter(production_file__endswith="_3d.step").exists())
 
     def test_single_upload_and_repeat_preserve_source_file_bytes(self):
@@ -2102,7 +2100,6 @@ class ProductionTests(TestCase):
                 self.assertRedirects(response, f"{reverse('order_create')}?step=image")
                 source = self.client.get(reverse("order_wizard_source_file"))
                 self.assertEqual(b"".join(source.streaming_content), content)
-                source.close()
                 self.client.post(f"{reverse('order_create')}?step=image", {"photo": image_upload()})
                 self.client.post(
                     f"{reverse('order_create')}?step=details", {"material": material.pk, "quantity": 1},
@@ -2112,7 +2109,6 @@ class ProductionTests(TestCase):
                 self.assertRedirects(response, reverse("order_detail", args=[order.pk]))
                 download = self.client.get(reverse("order_file_download", args=[order.pk]))
                 self.assertEqual(b"".join(download.streaming_content), content)
-                download.close()
                 order.status = OrderStatus.DONE
                 order.save()
                 response = self.client.post(reverse("order_repeat", args=[order.pk]))
@@ -2120,7 +2116,6 @@ class ProductionTests(TestCase):
                 self.assertRedirects(response, reverse("order_detail", args=[repeated.pk]))
                 download = self.client.get(reverse("order_file_download", args=[repeated.pk]))
                 self.assertEqual(b"".join(download.streaming_content), content)
-                download.close()
 
     def test_bulk_item_form_rejects_wrong_material_and_long_title(self):
         wrong_material_form = BulkOrderItemForm(

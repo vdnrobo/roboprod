@@ -8,13 +8,16 @@ on:
 
 jobs:
   test:
+    name: Python ${{ matrix.python-version }} / ${{ matrix.database }}
     runs-on: ubuntu-latest
     strategy:
       matrix:
         include:
           - python-version: "3.12"
+            database: SQLite
             database-url: ""
           - python-version: "3.14"
+            database: PostgreSQL
             database-url: "postgresql://postgres:ci_password@127.0.0.1:5432/lab_production"
     services:
       postgres:
@@ -26,7 +29,7 @@ jobs:
         ports:
           - 5432:5432
         options: >-
-          --health-cmd pg_isready
+          --health-cmd "pg_isready -U postgres -d lab_production"
           --health-interval 5s
           --health-timeout 5s
           --health-retries 12
